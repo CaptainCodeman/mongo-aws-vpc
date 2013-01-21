@@ -1,0 +1,298 @@
+﻿{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description" : "Add a private subnet to an existing Virtual Private Cloud (VPC) with Network ACLs to lockdown access",
+
+  "Parameters" : {
+    "SubnetCidr" :{
+      "Description" : "CIDR of this subnet",
+      "Type" : "String",
+      "MinLength": "7",
+      "MaxLength": "15",
+      "Default" : "10.0.1.0/24",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x"
+    },
+    "NATCidr" :{
+      "Description" : "CIDR of NAT",
+      "Type" : "String",
+      "MinLength": "7",
+      "MaxLength": "15",
+      "Default" : "10.0.0.5",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x"
+    },
+    "NATInstanceId" : {
+      "Description" : "The NAT instance Id",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "128",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*"
+    },
+    "VpcId" :{
+      "Description" : "Id of the VPC that this NAT device is for",
+      "Type" : "String"
+    },
+    "VpcCidr" : {
+      "Description" : "CIDR of VPC",
+      "Type" : "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default" : "10.0.0.0/16",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+    },
+    "AvailabilityZone" : {
+        "Description" : "Availability zone for the subnet",
+        "Type": "String",
+        "AllowedValues": [ "a", "b", "c", "d", "e" ],
+        "Default": "a"
+    },
+    "StackNameOrId" : {
+      "Description" : "The StackName or StackId",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "128"
+    }
+  },
+
+  "Resources": {
+    "Subnet" : {
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "AvailabilityZone" : { "Fn::Join" : [ "", [ { "Ref" : "AWS::Region" }, { "Ref": "AvailabilityZone" }] ] },
+        "VpcId" : { "Ref" : "VpcId" },
+        "CidrBlock" : { "Ref": "SubnetCidr" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          { "Key" : "Network", "Value" : "Private" }
+        ]
+      }
+    },
+
+    "RouteTable" : {
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VpcId"},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          { "Key" : "Network", "Value" : "Private" }
+        ]
+      }
+    },
+
+    "Route" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "RouteTable" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "InstanceId" : { "Ref" : "NATInstanceId" }
+      }
+    },
+
+    "SubnetRouteTableAssociation" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "Subnet" },
+        "RouteTableId" : { "Ref" : "RouteTable" }
+      }
+    },
+
+    "NetworkAcl" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VpcId"},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "AWS::StackName" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+
+    "NetworkAclEntryInboundMongo" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "100",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "27017", "To" : "27017"}
+      }
+    },
+
+    "NetworkAclEntryInboundEphemeralTcp" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "500",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "32768", "To" : "65535"}
+      }
+    },
+
+    "NetworkAclEntryInboundEphemeralUdp" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "510",
+        "Protocol" : "17",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "32768", "To" : "65535"}
+      }
+    },
+
+    "NetworkAclEntryInboundSSH" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "900",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "NATCidr" },
+        "PortRange" : {"From" : "22", "To" : "22"}
+      }
+    },
+
+    "NetworkAclEntryInboundRDP" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "910",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "NATCidr" },
+        "PortRange" : {"From" : "3389", "To" : "3389"}
+      }
+    },
+
+    "NetworkAclEntryInboundMongoWeb" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "920",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "NATCidr" },
+        "PortRange" : {"From" : "28017", "To" : "28017"}
+      }
+    },
+
+    "NetworkAclEntryInboundICMP" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "930",
+        "Protocol" : "1",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : {"Ref" : "VpcCidr" },
+        "Icmp" : { "Code" : "-1", "Type" : "-1" }
+      }
+    },
+
+    "NetworkAclEntryOutboundHTTP" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "100",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : {"From" : "80", "To" : "80"}
+      }
+    },
+
+    "NetworkAclEntryOutboundHTTPS" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "110",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : "0.0.0.0/0",
+        "PortRange" : {"From" : "443", "To" : "443"}
+      }
+    },
+
+    "NetworkAclEntryOutboundDynamicTcp" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "500",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "32768", "To" : "65535"}
+      }
+    },
+
+    "NetworkAclEntryOutboundEphemeralUdp" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "510",
+        "Protocol" : "17",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "32768", "To" : "65535"}
+      }
+    },
+
+    "NetworkAclEntryOutboundDNSPublic" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "900",
+        "Protocol" : "17",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : {"Ref" : "VpcCidr" },
+        "PortRange" : {"From" : "53", "To" : "53"}
+      }
+    },
+
+    "NetworkAclEntryOutboundICMP" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : {"Ref" : "NetworkAcl"},
+        "RuleNumber" : "910",
+        "Protocol" : "1",
+        "RuleAction" : "allow",
+        "Egress" : "true",
+        "CidrBlock" : {"Ref" : "VpcCidr" },
+        "Icmp" : { "Code" : "0", "Type" : "8" }
+      }
+    },
+
+    "SubnetNetworkAclAssociation" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "Subnet" },
+        "NetworkAclId" : { "Ref" : "NetworkAcl" }
+      }
+    }
+  },
+
+  "Outputs" : {
+    "SubnetId" : {
+      "Value" : { "Ref" : "Subnet" }
+    },
+    "NetworkAcl" : {
+      "Value" : { "Ref" : "NetworkAcl" }
+    }
+  }
+}

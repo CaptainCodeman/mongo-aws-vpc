@@ -1,0 +1,243 @@
+﻿{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "Create NAT instance for private subnets which also functions as bastion server to provide VPN access",
+
+  "Parameters": {
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+    "SSHFrom" : {
+      "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
+      "Type" : "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default" : "0.0.0.0/0",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+    },
+    "InstanceType" : {
+      "Description" : "NAT Device EC2 instance type",
+      "Type" : "String",
+      "Default" : "t1.micro",
+      "AllowedValues" : [ "t1.micro","m1.small","m1.medium","m1.large","m1.xlarge","m2.xlarge","m2.2xlarge","m2.4xlarge","c1.medium","c1.xlarge","cc1.4xlarge","cc2.8xlarge","cg1.4xlarge"],
+      "ConstraintDescription" : "must be a valid EC2 instance type."
+    },
+    "PrivateIpAddress" :{
+      "Description" : "Private IP Address of NAT instance within public subnet",
+      "Type" : "String",
+      "MinLength": "7",
+      "MaxLength": "15",
+      "Default" : "10.0.0.5",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})",
+      "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x"
+    },
+    "VpcId" :{
+      "Description" : "Id of the VPC that this NAT device is for",
+      "Type" : "String"
+    },
+    "PublicSubnetId" :{
+      "Description" : "Id of the public subnet that this NAT device should be launched in",
+      "Type" : "String"
+    },
+    "InternalDomainSuffix" : {
+        "Description" : "Private domain name suffix",
+        "Type" : "String",
+        "Default" : "local",
+        "AllowedPattern" : "^[a-z0-9\\.]{1,30}$",
+        "ConstraintDescription" : "must contain 1-30 alphanumeric characters"
+    },
+    "DefaultSecurityGroup": {
+      "Description" : "The default VPC security group for instances",
+      "Type": "String"
+    },
+    "StackNameOrId" : {
+      "Description" : "The StackName or StackId",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "128"
+    },
+    "NetworkAcl": {
+      "Description" : "The network ACL of the public subnet this NAT instance is in",
+      "Type": "String"
+    }
+  },
+
+  "Mappings" : {
+    "AWSNATAMI" : {
+      "us-east-1"      : { "AMI" : "ami-f619c29f" },
+      "us-west-1"      : { "AMI" : "ami-3bcc9e7e" },
+      "us-west-2"      : { "AMI" : "ami-52ff7262" },
+      "eu-west-1"      : { "AMI" : "ami-e5e2d991" },
+      "sa-east-1"      : { "AMI" : "ami-0039e61d" },
+      "ap-southeast-1" : { "AMI" : "ami-02eb9350" },
+      "ap-northeast-1" : { "AMI" : "ami-14d86d15" },
+      "ap-southeast-2" : { "AMI" : "ami-ab990e91" }
+    }
+  },
+
+  "Resources" : {
+    "NATIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "NATInstance" }
+      }
+    },
+
+    "NetworkAclEntryInboundSSH" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "NetworkAcl" },
+        "RuleNumber" : "900",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "SSHFrom" },
+        "PortRange" : { "From" : "22", "To" : "22" }
+      }
+    },
+
+    "NetworkAclEntryInboundRDP" : {
+      "Type" : "AWS::EC2::NetworkAclEntry",
+      "Properties" : {
+        "NetworkAclId" : { "Ref" : "NetworkAcl" },
+        "RuleNumber" : "910",
+        "Protocol" : "6",
+        "RuleAction" : "allow",
+        "Egress" : "false",
+        "CidrBlock" : { "Ref" : "SSHFrom" },
+        "PortRange" : { "From" : "3389", "To" : "3389" }
+      }
+    },
+
+    "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : { "Ref" : "SSHFrom" } },
+           { "IpProtocol" : "tcp", "FromPort" : "943", "ToPort" : "943", "CidrIp" : { "Ref" : "SSHFrom" } },
+           { "IpProtocol" : "tcp", "FromPort" : "946", "ToPort" : "946", "CidrIp" : { "Ref" : "SSHFrom" } },
+           { "IpProtocol" : "udp", "FromPort" : "1194", "ToPort" : "1194", "CidrIp" : { "Ref" : "SSHFrom" } },
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : { "Ref" : "SSHFrom" } },
+           { "IpProtocol" : "tcp", "FromPort" : "3389",  "ToPort" : "3389",  "CidrIp" : { "Ref" : "SSHFrom" } }],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "DefaultSecurityGroup" } },
+           { "IpProtocol" : "tcp", "FromPort" : "3389",  "ToPort" : "3389",  "SourceSecurityGroupId" : { "Ref" : "DefaultSecurityGroup" } }]
+      }
+    },
+
+    "CfnUser" : {
+      "Type" : "AWS::IAM::User",
+      "Properties" : {
+        "Path": "/",
+        "Policies": [{
+          "PolicyName": "root",
+          "PolicyDocument": { "Statement":[{
+            "Effect":"Allow",
+            "Action":"cloudformation:DescribeStackResource",
+            "Resource":"*"
+          }]}
+        }]
+      }
+    },
+
+    "HostKeys" : {
+      "Type" : "AWS::IAM::AccessKey",
+      "Properties" : {
+        "UserName" : {"Ref": "CfnUser"}
+      }
+    },
+
+    "NATInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+            "packages" : {
+              "rpm" : {
+                "openvpn" : "http://swupdate.openvpn.org/as/openvpn-as-1.8.4-RHEL5.x86_64.rpm"
+              }
+            }
+          }
+        }
+      },
+      "Properties" : {
+        "InstanceType" : { "Ref" : "InstanceType" },
+        "SubnetId" : { "Ref" : "PublicSubnetId" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+        "SecurityGroupIds" : [ { "Ref" : "DefaultSecurityGroup" }, { "Ref" : "NATSecurityGroup" }],
+        "KeyName": { "Ref": "KeyName" },
+        "DisableApiTermination": "true",
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } },
+          { "Key" : "Network", "Value" : "Public" },
+          { "Key" : "Type", "Value" : "Nat" }
+        ],
+        "PrivateIpAddress": { "Ref": "PrivateIpAddress" },
+        "UserData"         : { "Fn::Base64" : { "Fn::Join" : [ "",
+        [
+            "#!/bin/bash\n",
+            "yum update -y aws-cfn-bootstrap\n",
+
+            "## Error reporting helper function\n",
+            "function error_exit\n",
+            "{\n",
+            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitConditionHandle" },
+            "'\n",
+            "   exit 1\n",
+            "}\n",
+
+            "## Initialize CloudFormation bits\n",
+            "/opt/aws/bin/cfn-init -v -s ", { "Ref" : "AWS::StackName" },
+            " -r MongoInstance",
+            "   --access-key ", { "Ref" : "HostKeys" },
+            "   --secret-key ", { "Fn::GetAtt" : [ "HostKeys", "SecretAccessKey" ] },
+            "   --region ", { "Ref" : "AWS::Region" },
+            " > /tmp/cfn-init.log 2>&1 || error_exit $(</tmp/cfn-init.log)\n",
+
+            "## Configure OpenVPN\n",
+            "sed -i 's/openvpnas_gen_init/openvpnas_gen_init --distro redhat/g' /usr/local/openvpn_as/bin/_ovpn-init\n",
+            "/usr/local/openvpn_as/bin/ovpn-init --force --batch --host ", { "Ref" : "NATIPAddress" }, " --ec2 --local_auth\n",
+            "echo \"openvpn:letmein\" | chpasswd\n",
+
+            "## CloudFormation signal that setup is complete\n",
+            "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitConditionHandle" },
+            "'\n"
+        ] ] } }
+      }
+    },
+
+    "WaitConditionHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : { }
+    },
+    "WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "NATInstance",
+      "Properties" : {
+        "Handle" : {  "Ref" : "WaitConditionHandle" },
+        "Timeout" : "300"
+      }
+    }
+  },
+
+  "Outputs" : {
+    "InstanceId" : {
+      "Value" : { "Ref" : "NATInstance" },
+      "Description" : "The NAT device instance Id"
+    },
+    "RemoteAccess" : {
+      "Value" : { "Fn::Join" : ["", [ "https://", { "Fn::GetAtt": [ "NATInstance", "PublicDnsName" ] }, "/admin" ]]},
+      "Description" : "The remote access address"
+    }
+  }
+}

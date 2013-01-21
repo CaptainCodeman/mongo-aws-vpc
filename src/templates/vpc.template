@@ -1,0 +1,335 @@
+﻿{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description" : "Create a Virtual Private Cloud (VPC) with public and private subnet plus Network ACLs and security groups to lockdown access",
+
+  "Parameters" : {
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+    "SSHFrom" : {
+      "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
+      "Type" : "String",
+      "MinLength": "9",
+      "MaxLength": "18",
+      "Default" : "0.0.0.0/0",
+      "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+      "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+    },
+    "PrimaryAvailabilityZone" : {
+        "Description" : "Availability zone for the primary public and private subnet",
+        "Type": "String",
+        "AllowedValues": [ "a", "b", "c", "d", "e" ],
+        "Default": "a"
+    },
+    "SecondaryAvailabilityZone" : {
+        "Description" : "Availability zone for the secondary private subnet",
+        "Type": "String",
+        "AllowedValues": [ "a", "b", "c", "d", "e" ],
+        "Default": "a"
+    },
+    "InternalDomainSuffix" : {
+        "Description" : "Private domain name suffix",
+        "Type" : "String",
+        "Default" : "local",
+        "AllowedPattern" : "^[a-z0-9\\.]{1,30}$",
+        "ConstraintDescription" : "must contain 1-30 alphanumeric characters"
+    },
+    "TemplateBucket" : {
+        "Description" : "S3 bucket for templates",
+        "Type" : "String",
+        "Default" : "intesoft-cloudformation"
+    },
+    "StackNameOrId" : {
+      "Description" : "The StackName or StackId",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "128"
+    }
+  },
+
+  "Mappings" : {
+    "SubnetConfig" : {
+      "VPC"       : { "CIDR" : "10.0.0.0/16" },
+      "Public"    : { "CIDR" : "10.0.0.0/24" },
+      "Primary"   : { "CIDR" : "10.0.1.0/24" },
+      "Secondary" : { "CIDR" : "10.0.2.0/24" },
+      "Nat"       : { "IP"   : "10.0.0.5" }
+    }
+  },
+
+  "Resources": {
+    "VPC" : {
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+
+    "DhcpOptions" : {
+       "Type" : "AWS::EC2::DHCPOptions",
+       "Properties" : {
+          "DomainName" : { "Ref" : "InternalDomainSuffix" },
+          "DomainNameServers" : [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "AmazonProvidedDNS" ],
+          "Tags" : [ { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } } ]
+       }
+    },
+    "DhcpOptionsAssociation" : {
+      "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties" : {
+        "VpcId" : {"Ref" : "VPC"},
+        "DhcpOptionsId" : {"Ref" : "DhcpOptions"}
+      }
+    },
+
+    "InternetGateway" : {
+      "Type" : "AWS::EC2::InternetGateway",
+      "Properties" : {
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } },
+          { "Key" : "Network", "Value" : "Public" }
+        ]
+      }
+    },
+
+    "AttachGateway" : {
+       "Type" : "AWS::EC2::VPCGatewayAttachment",
+       "Properties" : {
+         "VpcId" : { "Ref" : "VPC" },
+         "InternetGatewayId" : { "Ref" : "InternetGateway" }
+       }
+    },
+
+    "DefaultSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Default access for all instances",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [ ],
+        "SecurityGroupEgress" : [
+           { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+           { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" }]
+      }
+    },
+
+    "DefaultSecurityGroupIcmpIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSecurityGroup" },
+        "IpProtocol": "icmp",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "SourceSecurityGroupId": { "Ref": "DefaultSecurityGroup" }
+      }
+    },
+
+    "DefaultSecurityGroupDnsIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSecurityGroup" },
+        "IpProtocol": "udp",
+        "FromPort": "53",
+        "ToPort": "53",
+        "SourceSecurityGroupId": { "Ref": "DefaultSecurityGroup" }
+      }
+    },
+
+    "DefaultSecurityGroupIcmpEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSecurityGroup" },
+        "IpProtocol": "icmp",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "DestinationSecurityGroupId": { "Ref": "DefaultSecurityGroup" }
+      }
+    },
+
+    "DefaultSecurityGroupDnsEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSecurityGroup" },
+        "IpProtocol": "udp",
+        "FromPort": "53",
+        "ToPort": "53",
+        "DestinationSecurityGroupId": { "Ref": "DefaultSecurityGroup" }
+      }
+    },
+
+    "ApplicationSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Application instance security",
+        "VpcId" : { "Ref" : "VPC" }
+      }
+    },
+
+    "ApplicationSecurityGroupDatabaseEgress": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": { "Ref": "ApplicationSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": "27017",
+        "ToPort": "27017",
+        "DestinationSecurityGroupId": { "Ref": "DatabaseSecurityGroup" }
+      }
+    },
+
+    "DatabaseSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Database instance security",
+        "VpcId" : { "Ref" : "VPC" }
+      }
+    },
+
+    "DatabaseSecurityGroupApplicationIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": "27017",
+        "ToPort": "27017",
+        "SourceSecurityGroupId": { "Ref": "ApplicationSecurityGroup" }
+      }
+    },
+
+    "DatabaseSecurityGroupDatabaseIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": "27017",
+        "ToPort": "27019",
+        "SourceSecurityGroupId": { "Ref": "DatabaseSecurityGroup" }
+      }
+    },
+
+    "DatabaseSecurityGroupDatabaseWebIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": "28017",
+        "ToPort": "28017",
+        "CidrIp": { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] }
+      }
+    },
+
+    "DatabaseSecurityGroupDatabaseEgress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": "27017",
+        "ToPort": "27019",
+        "SourceSecurityGroupId": { "Ref": "DatabaseSecurityGroup" }
+      }
+    },
+
+    "PublicSubnet" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "Create Public subnet"
+      },
+      "Properties" : {
+        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-public.template" ]]},
+        "Parameters" : {
+          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]},
+          "VpcId"                  : { "Ref" : "VPC" },
+          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"       : { "Ref" : "PrimaryAvailabilityZone" },
+          "StackNameOrId"          : { "Ref" : "StackNameOrId" },
+          "GatewayId"              : { "Ref" : "InternetGateway" }
+        }
+      }
+    },
+
+    "NatDevice" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "Create NAT instance"
+      },
+      "Properties" : {
+        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "nat.template" ]]},
+        "Parameters" : {
+          "KeyName"                : { "Ref" : "KeyName" },
+          "SSHFrom"                : { "Ref" : "SSHFrom" },
+          "InstanceType"           : "t1.micro",
+          "PrivateIpAddress"       : { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] },
+          "InternalDomainSuffix"   : { "Ref" : "InternalDomainSuffix" },
+          "VpcId"                  : { "Ref" : "VPC" },
+          "SubnetId"               : { "Ref" : "PublicSubnet" },
+          "DefaultSecurityGroup"   : { "Ref" : "DefaultSecurityGroup" },
+          "StackNameOrId"          : { "Ref" : "StackNameOrId" },
+          "NetworkAcl"             : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] }
+        }
+      }
+    },
+
+    "PrimarySubnet" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "Create Primary Private subnet"
+      },
+      "Properties" : {
+        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
+        "Parameters" : {
+          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Primary", "CIDR" ]},
+          "NATCidr"                : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] },
+          "NATInstanceId"          : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
+          "VpcId"                  : { "Ref" : "VPC" },
+          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"       : { "Ref" : "PrimaryAvailabilityZone" },
+          "StackNameOrId"          : { "Ref" : "StackNameOrId" }
+        }
+      }
+    },
+
+    "SecondarySubnet" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "Create Secondary Private subnet"
+      },
+      "Properties" : {
+        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
+        "Parameters" : {
+          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Secondary", "CIDR" ]},
+          "NATCidr"                : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] },
+          "NATInstanceId"          : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
+          "VpcId"                  : { "Ref" : "VPC" },
+          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"       : { "Ref" : "SecondaryAvailabilityZone" },
+          "StackNameOrId"          : { "Ref" : "StackNameOrId" }
+        }
+      }
+    }
+  },
+
+  "Outputs" : {
+    "VpcId" : {
+      "Value" : { "Ref" : "VPC" }
+    },
+    "DefaultSecurityGroupId" : {
+      "Value" : { "Ref" : "DefaultSecurityGroup" }
+    },
+    "DatabaseSecurityGroupId" : {
+      "Value" : { "Ref" : "DatabaseSecurityGroup" }
+    },
+    "ApplicationSecurityGroupId" : {
+      "Value" : { "Ref" : "ApplicationSecurityGroup" }
+    },
+    "RemoteAccess" : {
+      "Value" : { "Fn::GetAtt": [ "NatDevice", "Outputs.RemoteAccess" ] }
+    }
+  }
+}

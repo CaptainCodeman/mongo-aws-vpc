@@ -1,0 +1,325 @@
+﻿{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Single node MongoDB deployment with a RAID10 storage configuration",
+
+  "Parameters" : {
+    "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
+      "Type"        : "String"
+    },
+    "InstanceType" : {
+      "Type" : "String",
+      "Default" : "m1.large",
+      "AllowedValues" : [ "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge", "c1.xlarge", "cc1.4xlarge" ],
+      "Description"   : "EC2 instance type (e.g. m1.small, m1.large, m1.xlarge, m2.xlarge)"
+    },
+    "VolumeSize" : {
+      "Description" : "Volume size for each EBS volume",
+      "Type"        : "Number",
+      "Default"     : "10"
+    },
+    "HostName" : {
+      "Description" : "Name for the MongoDB server",
+      "Type"        : "String",
+      "Default"     : "mongodb01",
+      "AllowedPattern" : "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$",
+      "MinLength": "1",
+      "MaxLength": "128",
+      "ConstraintDescription" : "hostname must conform to RFC 1123"
+    },
+    "ReplicaSetName" : {
+      "Description" : "Name for the MongoDB replica set",
+      "Type"        : "String",
+      "Default"     : "vpc"
+    },
+    "VpcId" :{
+      "Description" : "Id of the VPC that this NAT device is for",
+      "Type" : "String"
+    },
+    "SubnetId" : {
+      "Description" : "Name for the VPC Subnet",
+      "Type"        : "String"
+    },
+    "OpLogSize" : {
+      "Description" : "Size of the OpLog",
+      "Type"        : "Number",
+      "Default"     : "2048"
+    },
+    "DefaultSecurityGroupId": {
+      "Description" : "VPC Security Group",
+      "Type"       : "String"
+    },
+    "DatabaseSecurityGroupId": {
+      "Description" : "VPC Security Group",
+      "Type"       : "String"
+    },
+    "StackNameOrId" : {
+      "Description" : "The StackName or StackId",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "128"
+    }
+  },
+
+  "Mappings" : {
+      "InstanceTypeArch" : {
+          "t1.micro"       : { "Arch" : "64" },
+          "m1.small"       : { "Arch" : "64" },
+          "m1.medium"      : { "Arch" : "64" },
+          "m1.large"       : { "Arch" : "64" },
+          "m1.xlarge"      : { "Arch" : "64" },
+          "m2.xlarge"      : { "Arch" : "64" },
+          "m2.2xlarge"     : { "Arch" : "64" },
+          "m2.4xlarge"     : { "Arch" : "64" },
+          "m3.xlarge"      : { "Arch" : "64" },
+          "m3.2xlarge"     : { "Arch" : "64" },
+          "c1.medium"      : { "Arch" : "64" },
+          "c1.xlarge"      : { "Arch" : "64" },
+          "cc1.4xlarge"    : { "Arch" : "64HVM" }
+      },
+      "RegionImageZone"    : {
+          "us-east-1"      : { "64" : "ami-1624987f", "64HVM" : "ami-02f54a6b" },
+          "us-west-2"      : { "64" : "ami-2a31bf1a", "64HVM" : "NOT_YET_SUPPORTED" },
+          "us-west-1"      : { "64" : "ami-1bf9de5e", "64HVM" : "NOT_YET_SUPPORTED" },
+          "eu-west-1"      : { "64" : "ami-c37474b7", "64HVM" : "ami-1b02026f" },
+          "sa-east-1"      : { "64" : "ami-1e08d103", "64HVM" : "NOT_YET_SUPPORTED" },
+          "ap-southeast-1" : { "64" : "ami-a6a7e7f4", "64HVM" : "NOT_YET_SUPPORTED" },
+          "ap-northeast-1" : { "64" : "ami-4e6cd34f", "64HVM" : "NOT_YET_SUPPORTED" },
+          "ap-southeast-2" : { "64" : "ami-bd990e87", "64HVM" : "NOT_YET_SUPPORTED" }
+      }
+  },
+
+  "Resources" : {
+    "CfnUser" : {
+      "Type" : "AWS::IAM::User",
+      "Properties" : {
+        "Path" : "/",
+        "Policies" : [
+          {
+            "PolicyName" : "root",
+            "PolicyDocument" : {
+              "Statement" : [
+                {
+                  "Effect" : "Allow",
+                  "Action" : "cloudformation:DescribeStackResource",
+                  "Resource" : "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "HostKeys" : {
+      "Type" : "AWS::IAM::AccessKey",
+      "Properties" : {
+        "UserName" : {"Ref" : "CfnUser" }
+      }
+    },
+
+    "MongoInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "config" : {
+            "packages" : {
+              "yum" : {
+                "mdadm" : [ ],
+                "sysstat" : [ ],
+                "xfsprogs": [ ]
+              }
+            },
+            "files"    : {
+              "/etc/yum.repos.d/10gen.repo" : {
+                "content" : { "Fn::Join" : [ "\n", [ "[10gen]", "name=10gen Repository", "baseurl=http://downloads-distro.mongodb.org/repo/redhat/os/x86_64", "gpgcheck=0" ] ] },
+                "mode"    : "000644",
+                "owner"   : "root",
+                "group"   : "root"
+              }
+            }
+          },
+          "HostName" : { "Ref" : "HostName" }
+        }
+      },
+      "Properties" : {
+        "SubnetId"         : { "Ref" : "SubnetId" },
+        "InstanceType"     : { "Ref" : "InstanceType" },
+        "ImageId"          : { "Fn::FindInMap" : [ "RegionImageZone", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "InstanceTypeArch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
+        "SecurityGroupIds" : [ { "Ref" : "DefaultSecurityGroupId" }, { "Ref" : "DatabaseSecurityGroupId" } ],
+        "KeyName"          : { "Ref" : "KeyName" },
+        "Tags" : [
+          { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } },
+          { "Key" : "Network", "Value" : "Private" },
+          { "Key" : "Type", "Value" : "Mongo" }
+        ],
+        "UserData"         : { "Fn::Base64" : { "Fn::Join" : [ "",
+        [
+            "#!/bin/bash\n",
+            "yum update -y aws-cfn-bootstrap\n",
+
+            "## Error reporting helper function\n",
+            "function error_exit\n",
+            "{\n",
+            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitConditionHandle" },
+            "'\n",
+            "   exit 1\n",
+            "}\n",
+
+            "## Initialize CloudFormation bits\n",
+            "/opt/aws/bin/cfn-init -v -s ", { "Ref" : "AWS::StackName" },
+            " -r MongoInstance",
+            "   --access-key ", { "Ref" : "HostKeys" },
+            "   --secret-key ", { "Fn::GetAtt" : [ "HostKeys", "SecretAccessKey" ] },
+            "   --region ", { "Ref" : "AWS::Region" },
+            " > /tmp/cfn-init.log 2>&1 || error_exit $(</tmp/cfn-init.log)\n",
+            "## Set hostname\n",
+
+            "## Waiting for EBS mounts to become available\n",
+            "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 10; done\n",
+            "while [ ! -e /dev/sdh2 ]; do echo waiting for /dev/sdh2 to attach; sleep 10; done\n",
+            "while [ ! -e /dev/sdh3 ]; do echo waiting for /dev/sdh3 to attach; sleep 10; done\n",
+            "while [ ! -e /dev/sdh4 ]; do echo waiting for /dev/sdh4 to attach; sleep 10; done\n",
+
+            "## Create RAID10 and persist configuration\n",
+            "mdadm --verbose --create /dev/md0 --metadata 1.2 --level=10 --chunk=256 --raid-devices=4 /dev/sdh1 /dev/sdh2 /dev/sdh3 /dev/sdh4 > /tmp/mdadm.log 2>&1\n",
+            "echo '`mdadm --detail --scan`' | tee -a /etc/mdadm.conf\n",
+
+            "## Set read-ahead on each device\n",
+            "blockdev --setra 32 /dev/md0\n",
+            "blockdev --setra 32 /dev/sdh1\n",
+            "blockdev --setra 32 /dev/sdh2\n",
+            "blockdev --setra 32 /dev/sdh3\n",
+            "blockdev --setra 32 /dev/sdh4\n",
+
+            "## Create physical and logical volumes\n",
+            "dd if=/dev/zero of=/dev/md0 bs=512 count=1\n",
+            "pvcreate /dev/md0\n",
+            "vgcreate vg0 /dev/md0\n",
+            "lvcreate -l 100%Free -n data vg0\n",
+
+            "## Create filesystems and mount point info\n",
+            "mkfs.xfs -f -l version=2,lazy-count=1,size=64m /dev/vg0/data > /tmp/mkfs.xfs.1.log 2>&1\n",
+            "mkdir /data\n",
+            "mkdir /data/db\n",
+            "mkdir /data/log\n",
+            "mkdir /data/journal\n",
+            "echo '/dev/vg0/data /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,osyncisdsync,barrier,largeio 0 0' | tee -a /etc/fstab\n",
+
+            "## Raise file descriptor limits\n",
+            "echo '* hard nofile 100000' | tee -a /etc/security/limits.conf\n",
+            "echo '* soft nofile 100000' | tee -a /etc/security/limits.conf\n",
+            "ulimit -n 64000\n",
+            "mount /data > /tmp/mountdata.log 2>&1\n",
+            "yum -y install mongo-10gen-server > /tmp/yum-mongo.log 2>&1\n",
+            "chown -R mongod:mongod /data > /tmp/chown1.log 2>&1\n",
+
+            "## Update mongod configuration\n",
+            "cat <<EOF > /etc/mongod.conf\n",
+            "logpath=/data/log/mongod.log\n",
+            "logappend=true\n",
+            "fork=true\n",
+            "directoryperdb=true\n",
+            "rest=true\n",
+            "replSet=", { "Ref" : "ReplicaSetName" },
+            "\n",
+            "oplogSize=", { "Ref" : "OpLogSize" },
+            "\n",
+            "EOF\n",
+
+            "## Start mongod\n",
+            "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
+
+            "## CloudFormation signal that setup is complete\n",
+            "/opt/aws/bin/cfn-signal -e 0 -r \"MongoInstance setup complete\" '", { "Ref" : "WaitConditionHandle" },
+            "'\n"
+        ] ] } }
+      }
+    },
+
+    "MongoVolume1" : {
+      "Type" : "AWS::EC2::Volume",
+      "Properties" : {
+        "Size" : { "Ref" : "VolumeSize" },
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
+      }
+    },
+    "MongoVolumeMount1" : {
+      "Type" : "AWS::EC2::VolumeAttachment",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "MongoInstance" },
+        "VolumeId"   : { "Ref" : "MongoVolume1" },
+        "Device"     : "/dev/sdh1"
+      }
+    },
+
+    "MongoVolume2" : {
+      "Type" : "AWS::EC2::Volume",
+      "Properties" : {
+        "Size" : { "Ref" : "VolumeSize" },
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
+      }
+    },
+    "MongoVolumeMount2" : {
+      "Type" : "AWS::EC2::VolumeAttachment",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "MongoInstance" },
+        "VolumeId"   : { "Ref" : "MongoVolume2" },
+        "Device"     : "/dev/sdh2"
+      }
+    },
+
+    "MongoVolume3" : {
+      "Type" : "AWS::EC2::Volume",
+      "Properties" : {
+        "Size" : { "Ref" : "VolumeSize" },
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
+      }
+    },
+    "MongoVolumeMount3" : {
+      "Type" : "AWS::EC2::VolumeAttachment",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "MongoInstance" },
+        "VolumeId"   : { "Ref" : "MongoVolume3" },
+        "Device"     : "/dev/sdh3"
+      }
+    },
+
+    "MongoVolume4" : {
+      "Type" : "AWS::EC2::Volume",
+      "Properties" : {
+        "Size" : { "Ref" : "VolumeSize" },
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
+      }
+    },
+    "MongoVolumeMount4" : {
+      "Type" : "AWS::EC2::VolumeAttachment",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "MongoInstance" },
+        "VolumeId"   : { "Ref" : "MongoVolume4" },
+        "Device"     : "/dev/sdh4"
+      }
+    },
+
+    "WaitConditionHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : { }
+    },
+    "WaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "MongoInstance",
+      "Properties" : {
+        "Handle" : {  "Ref" : "WaitConditionHandle" },
+        "Timeout" : "300"
+      }
+    }
+  },
+
+  "Outputs" : {
+    "InstanceName" : {
+      "Value" : {  "Fn::GetAtt" : [ "MongoInstance", "PublicDnsName" ] },
+      "Description" : "public DNS name of the new MongoInstance"
+    }
+  }
+}

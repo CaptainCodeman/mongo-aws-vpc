@@ -162,7 +162,7 @@
             "## Error reporting helper function\n",
             "function error_exit\n",
             "{\n",
-            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitConditionHandle" },
+            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandle" },
             "'\n",
             "   exit 1\n",
             "}\n",
@@ -232,8 +232,7 @@
             "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
 
             "## CloudFormation signal that setup is complete\n",
-            "/opt/aws/bin/cfn-signal -e 0 -r \"MongoInstance setup complete\" '", { "Ref" : "WaitConditionHandle" },
-            "'\n"
+            "/opt/aws/bin/cfn-signal -e 0 -r \"MongoInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"
         ] ] } }
       }
     },
@@ -302,15 +301,14 @@
       }
     },
 
-    "WaitConditionHandle" : {
-      "Type" : "AWS::CloudFormation::WaitConditionHandle",
-      "Properties" : { }
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
     },
     "WaitCondition" : {
       "Type" : "AWS::CloudFormation::WaitCondition",
       "DependsOn" : "MongoInstance",
       "Properties" : {
-        "Handle" : {  "Ref" : "WaitConditionHandle" },
+        "Handle" : {  "Ref" : "WaitHandle" },
         "Timeout" : "300"
       }
     }

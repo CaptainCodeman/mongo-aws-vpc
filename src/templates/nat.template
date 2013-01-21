@@ -85,8 +85,15 @@
     "NATIPAddress" : {
       "Type" : "AWS::EC2::EIP",
       "Properties" : {
-        "Domain" : "vpc",
-        "InstanceId" : { "Ref" : "NATInstance" }
+        "Domain" : "vpc"
+      }
+    },
+
+    "NATIPAssociation" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "NATInstance" },
+        "EIP" : { "Ref" : "NATIPAddress" }
       }
     },
 
@@ -191,7 +198,7 @@
             "## Error reporting helper function\n",
             "function error_exit\n",
             "{\n",
-            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitConditionHandle" },
+            "   /opt/aws/bin/cfn-signal -e 1 -r \"$1\" '", { "Ref" : "WaitHandle" },
             "'\n",
             "   exit 1\n",
             "}\n",
@@ -210,21 +217,19 @@
             "echo \"openvpn:letmein\" | chpasswd\n",
 
             "## CloudFormation signal that setup is complete\n",
-            "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitConditionHandle" },
-            "'\n"
+            "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"
         ] ] } }
       }
     },
 
-    "WaitConditionHandle" : {
-      "Type" : "AWS::CloudFormation::WaitConditionHandle",
-      "Properties" : { }
+    "WaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle"
     },
     "WaitCondition" : {
       "Type" : "AWS::CloudFormation::WaitCondition",
       "DependsOn" : "NATInstance",
       "Properties" : {
-        "Handle" : {  "Ref" : "WaitConditionHandle" },
+        "Handle" : {  "Ref" : "WaitHandle" },
         "Timeout" : "300"
       }
     }
@@ -236,7 +241,7 @@
       "Description" : "The NAT device instance Id"
     },
     "RemoteAccess" : {
-      "Value" : { "Fn::Join" : ["", [ "https://", { "Fn::GetAtt": [ "NATInstance", "PublicDnsName" ] }, "/admin" ]]},
+      "Value" : { "Fn::Join" : ["", [ "https://", { "Fn::GetAtt": [ "NATInstance", "PublicIp" ] }, "/admin" ]]},
       "Description" : "The remote access address"
     }
   }

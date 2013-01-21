@@ -1,4 +1,4 @@
-﻿{
+{
   "AWSTemplateFormatVersion" : "2010-09-09",
 
   "Description" : "MongoDB replica set with cross-availability-zone backup on VPC with security",

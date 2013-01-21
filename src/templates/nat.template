@@ -1,4 +1,4 @@
-﻿{
+{
   "AWSTemplateFormatVersion": "2010-09-09",
 
   "Description": "Create NAT instance for private subnets which also functions as bastion server to provide VPN access",

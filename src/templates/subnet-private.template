@@ -1,4 +1,4 @@
-﻿{
+{
   "AWSTemplateFormatVersion": "2010-09-09",
 
   "Description" : "Add a private subnet to an existing Virtual Private Cloud (VPC) with Network ACLs to lockdown access",

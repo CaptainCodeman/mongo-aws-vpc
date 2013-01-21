@@ -1,4 +1,4 @@
-﻿{
+{
   "AWSTemplateFormatVersion": "2010-09-09",
 
   "Description" : "Create a Virtual Private Cloud (VPC) with public and private subnet plus Network ACLs and security groups to lockdown access",

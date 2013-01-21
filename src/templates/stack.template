@@ -31,7 +31,7 @@
         "Description" : "Availability zone for the secondary private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
-        "Default": "a"
+        "Default": "b"
     },
     "InternalDomainSuffix" : {
         "Description" : "Private domain name suffix",

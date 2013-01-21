@@ -31,7 +31,7 @@
         "Description" : "Availability zone for the secondary private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
-        "Default": "a"
+        "Default": "b"
     },
     "InternalDomainSuffix" : {
         "Description" : "Private domain name suffix",
@@ -268,7 +268,7 @@
           "PrivateIpAddress"       : { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] },
           "InternalDomainSuffix"   : { "Ref" : "InternalDomainSuffix" },
           "VpcId"                  : { "Ref" : "VPC" },
-          "SubnetId"               : { "Ref" : "PublicSubnet" },
+          "PublicSubnetId"         : { "Ref" : "PublicSubnet" },
           "DefaultSecurityGroup"   : { "Ref" : "DefaultSecurityGroup" },
           "StackNameOrId"          : { "Ref" : "StackNameOrId" },
           "NetworkAcl"             : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] }

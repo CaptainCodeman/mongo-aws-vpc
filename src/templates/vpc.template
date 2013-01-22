@@ -51,10 +51,6 @@
       "MinLength": "1",
       "MaxLength": "128"
     },
-    "CfnUser" : {
-      "Description" : "The cloud formation user",
-      "Type": "String"
-    },
     "CfnAccessKey" : {
       "Description" : "The cloud formation access key",
       "Type": "String",
@@ -288,7 +284,6 @@
           "DefaultSG"         : { "Ref" : "DefaultSecurityGroup" },
           "StackNameOrId"     : { "Ref" : "StackNameOrId" },
           "NetworkAcl"        : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] },
-          "CfnUser"           : { "Ref" : "CfnUser" },
           "CfnAccessKey"      : { "Ref" : "CfnAccessKey" },
           "CfnSecretKey"      : { "Ref" : "CfnSecretKey" },
           "AmazonProvidedDNS" : { "Fn::FindInMap" : [ "SubnetConfig", "DNS", "IP" ] }
@@ -350,6 +345,15 @@
     },
     "RemoteAccess" : {
       "Value" : { "Fn::GetAtt": [ "NatDevice", "Outputs.RemoteAccess" ] }
+    },
+    "PublicSubnetId" : {
+      "Value" : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.SubnetId" ] }
+    },
+    "PrimarySubnetId" : {
+      "Value" : { "Fn::GetAtt": [ "PrimarySubnet", "Outputs.SubnetId" ] }
+    },
+    "SecondarySubnetId" : {
+      "Value" : { "Fn::GetAtt": [ "SecondarySubnet", "Outputs.SubnetId" ] }
     }
   }
 }

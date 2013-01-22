@@ -66,10 +66,6 @@
       "Description" : "The network ACL of the public subnet this NAT instance is in",
       "Type": "String"
     },
-    "CfnUser" : {
-      "Description" : "The cloud formation user",
-      "Type": "String"
-    },
     "CfnAccessKey" : {
       "Description" : "The cloud formation access key",
       "Type": "String",
@@ -329,7 +325,7 @@
       "DependsOn" : "NATInstance",
       "Properties" : {
         "Handle" : {  "Ref" : "WaitHandle" },
-        "Timeout" : "600"
+        "Timeout" : "300"
       }
     }
   },

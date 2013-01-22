@@ -225,7 +225,7 @@
       }
     },
 
-    "NetworkAclEntryOutboundDynamicTcp" : {
+    "NetworkAclEntryOutboundEphemeralTcp" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {
         "NetworkAclId" : {"Ref" : "NetworkAcl"},
@@ -273,7 +273,7 @@
         "RuleAction" : "allow",
         "Egress" : "true",
         "CidrBlock" : {"Ref" : "VpcCidr" },
-        "Icmp" : { "Code" : "0", "Type" : "8" }
+        "Icmp" : { "Code" : "-1", "Type" : "-1" }
       }
     },
 

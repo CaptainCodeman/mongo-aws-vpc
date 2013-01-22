@@ -87,9 +87,32 @@
           "DomainName"     : { "Ref" : "DomainName" },
           "TemplateBucket" : { "Ref" : "TemplateBucket" },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
-          "CfnUser"        : { "Ref" : "CfnUser" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
           "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] }
+        }
+      }
+    },
+
+    "Mongo01" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "MongoDB Server 01"
+      },
+      "Properties" : {
+        "TemplateURL"      : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "mongo-master.template" ] ] },
+        "Parameters" : {
+          "KeyName"        : { "Ref" : "KeyName" },
+          "InstanceType"   : "t1.micro",
+          "HostName"       : "mongo01",
+          "DomainName"     : { "Ref" : "DomainName" },
+          "ReplicaSetName" : "vpc",
+          "VpcId"          : { "Ref" : "VPC" },
+          "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.PrimarySubnetId" ] },
+          "StackNameOrId"  : { "Ref" : "AWS::StackName" },
+          "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
+          "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] },
+          "DefaultSecurityGroupId"  : { "Fn::GetAtt" : [ "VPC", "Outputs.DefaultSecurityGroupId" ] },
+          "DatabaseSecurityGroupId" : { "Fn::GetAtt" : [ "VPC", "Outputs.DatabaseSecurityGroupId" ] }
         }
       }
     }

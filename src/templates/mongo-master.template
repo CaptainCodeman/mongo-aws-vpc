@@ -8,17 +8,20 @@
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access",
       "Type"        : "String"
     },
+
     "InstanceType" : {
       "Type" : "String",
       "Default" : "m1.large",
       "AllowedValues" : [ "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge", "c1.xlarge", "cc1.4xlarge" ],
       "Description"   : "EC2 instance type (e.g. m1.small, m1.large, m1.xlarge, m2.xlarge)"
     },
+
     "VolumeSize" : {
       "Description" : "Volume size for each EBS volume",
       "Type"        : "Number",
       "Default"     : "10"
     },
+
     "HostName" : {
       "Description" : "Name for the MongoDB server",
       "Type"        : "String",
@@ -28,6 +31,7 @@
       "MaxLength": "128",
       "ConstraintDescription" : "hostname must conform to RFC 1123"
     },
+
     "DomainName" : {
         "Description" : "Private domain name suffix",
         "Type" : "String",
@@ -35,44 +39,53 @@
         "AllowedPattern" : "^[a-z0-9\\.]{1,30}$",
         "ConstraintDescription" : "must contain 1-30 alphanumeric characters"
     },
+
     "ReplicaSetName" : {
       "Description" : "Name for the MongoDB replica set",
       "Type"        : "String",
       "Default"     : "vpc"
     },
-    "VpcId" :{
-      "Description" : "Id of the VPC that this NAT device is for",
+
+    "VpcId" : {
+      "Description" : "Id of the VPC",
       "Type" : "String"
     },
+
     "SubnetId" : {
-      "Description" : "Name for the VPC Subnet",
+      "Description" : "The subnet that this instance will be launched in",
       "Type"        : "String"
     },
+
     "OpLogSize" : {
       "Description" : "Size of the OpLog",
       "Type"        : "Number",
       "Default"     : "2048"
     },
+
     "DefaultSecurityGroupId": {
-      "Description" : "VPC Security Group",
+      "Description" : "VPC default security group",
       "Type"       : "String"
     },
+
     "DatabaseSecurityGroupId": {
-      "Description" : "VPC Security Group",
+      "Description" : "VPC database security group",
       "Type"       : "String"
     },
+
     "CfnAccessKey" : {
       "Description" : "The cloud formation access key",
       "Type": "String",
       "NoEcho" : "true"
     },
+
     "CfnSecretKey" : {
       "Description" : "The cloud formation secret key",
       "Type": "String",
       "NoEcho" : "true"
     },
+
     "StackNameOrId" : {
-      "Description" : "The StackName or StackId",
+      "Description" : "The stack name or id",
       "Type": "String",
       "MinLength": "1",
       "MaxLength": "128"
@@ -95,7 +108,8 @@
           "c1.xlarge"      : { "Arch" : "64" },
           "cc1.4xlarge"    : { "Arch" : "64HVM" }
       },
-      "RegionImageZone"    : {
+
+      "RegionImageZone" : {
           "us-east-1"      : { "64" : "ami-1624987f", "64HVM" : "ami-02f54a6b" },
           "us-west-2"      : { "64" : "ami-2a31bf1a", "64HVM" : "NOT_YET_SUPPORTED" },
           "us-west-1"      : { "64" : "ami-1bf9de5e", "64HVM" : "NOT_YET_SUPPORTED" },
@@ -239,6 +253,7 @@
         "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
       }
     },
+
     "MongoVolumeMount1" : {
       "Type" : "AWS::EC2::VolumeAttachment",
       "Properties" : {
@@ -255,6 +270,7 @@
         "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
       }
     },
+
     "MongoVolumeMount2" : {
       "Type" : "AWS::EC2::VolumeAttachment",
       "Properties" : {
@@ -271,6 +287,7 @@
         "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
       }
     },
+
     "MongoVolumeMount3" : {
       "Type" : "AWS::EC2::VolumeAttachment",
       "Properties" : {
@@ -287,6 +304,7 @@
         "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
       }
     },
+
     "MongoVolumeMount4" : {
       "Type" : "AWS::EC2::VolumeAttachment",
       "Properties" : {
@@ -299,6 +317,7 @@
     "WaitHandle" : {
       "Type" : "AWS::CloudFormation::WaitConditionHandle"
     },
+
     "WaitCondition" : {
       "Type" : "AWS::CloudFormation::WaitCondition",
       "DependsOn" : "MongoInstance",
@@ -310,9 +329,14 @@
   },
 
   "Outputs" : {
-    "InstanceName" : {
-      "Value" : {  "Fn::GetAtt" : [ "MongoInstance", "PublicDnsName" ] },
-      "Description" : "public DNS name of the new MongoInstance"
+    "PrivateIp" : {
+      "Value" : {  "Fn::GetAtt" : [ "MongoInstance", "PrivateIp" ] },
+      "Description" : "Private IP Address of the new mongo instance"
+    },
+
+    "DnsName" : {
+      "Value" : { "Fn::Join" : [ ".", [ { "Ref" : "HostName" }, { "Ref" : "DomainName" } ] ] },
+      "Description" : "Private IP Address of the new mongo instance"
     }
   }
 }

@@ -12,6 +12,7 @@
       "AllowedPattern" : "[-_ a-zA-Z0-9]*",
       "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
     },
+
     "SSHFrom" : {
       "Description" : "Lockdown SSH access to the bastion host (default can be accessed from anywhere)",
       "Type" : "String",
@@ -21,18 +22,21 @@
       "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
       "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
     },
+
     "PrimaryAZ" : {
         "Description" : "Availability zone for the primary public and private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
         "Default": "a"
     },
+
     "SecondaryAZ" : {
         "Description" : "Availability zone for the secondary private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
         "Default": "b"
     },
+
     "DomainName" : {
         "Description" : "Private domain name suffix",
         "Type" : "String",
@@ -40,22 +44,26 @@
         "AllowedPattern" : "^[a-z0-9\\.]{1,30}$",
         "ConstraintDescription" : "must contain 1-30 alphanumeric characters"
     },
+
     "TemplateBucket" : {
         "Description" : "S3 bucket for templates",
         "Type" : "String",
         "Default" : "intesoft-cloudformation"
     },
+
     "StackNameOrId" : {
-      "Description" : "The StackName or StackId",
+      "Description" : "The stack name or Id",
       "Type": "String",
       "MinLength": "1",
       "MaxLength": "128"
     },
+
     "CfnAccessKey" : {
       "Description" : "The cloud formation access key",
       "Type": "String",
       "NoEcho" : "true"
     },
+
     "CfnSecretKey" : {
       "Description" : "The cloud formation secret key",
       "Type": "String",
@@ -280,6 +288,7 @@
           "PrivateIpAddress"  : { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] },
           "DomainName"        : { "Ref" : "DomainName" },
           "VpcId"             : { "Ref" : "VPC" },
+          "VpcCidr"           : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
           "PublicSubnetId"    : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.SubnetId" ] },
           "DefaultSG"         : { "Ref" : "DefaultSecurityGroup" },
           "StackNameOrId"     : { "Ref" : "StackNameOrId" },
@@ -334,24 +343,31 @@
     "VpcId" : {
       "Value" : { "Ref" : "VPC" }
     },
+
     "DefaultSecurityGroupId" : {
       "Value" : { "Ref" : "DefaultSecurityGroup" }
     },
+
     "DatabaseSecurityGroupId" : {
       "Value" : { "Ref" : "DatabaseSecurityGroup" }
     },
+
     "ApplicationSecurityGroupId" : {
       "Value" : { "Ref" : "ApplicationSecurityGroup" }
     },
+
     "RemoteAccess" : {
       "Value" : { "Fn::GetAtt": [ "NatDevice", "Outputs.RemoteAccess" ] }
     },
+
     "PublicSubnetId" : {
       "Value" : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.SubnetId" ] }
     },
+
     "PrimarySubnetId" : {
       "Value" : { "Fn::GetAtt": [ "PrimarySubnet", "Outputs.SubnetId" ] }
     },
+
     "SecondarySubnetId" : {
       "Value" : { "Fn::GetAtt": [ "SecondarySubnet", "Outputs.SubnetId" ] }
     }

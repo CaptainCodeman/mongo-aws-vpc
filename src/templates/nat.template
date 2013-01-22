@@ -173,6 +173,28 @@
       }
     },
 
+    "DefaultSecurityGroupSSHIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSG" },
+        "IpProtocol": "tcp",
+        "FromPort": "22",
+        "ToPort": "22",
+        "SourceSecurityGroupId": { "Ref": "NATSecurityGroup" }
+      }
+    },
+
+    "DefaultSecurityGroupRDPIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DefaultSG" },
+        "IpProtocol": "tcp",
+        "FromPort": "3389",
+        "ToPort": "3389",
+        "SourceSecurityGroupId": { "Ref": "NATSecurityGroup" }
+      }
+    },
+
     "NetworkAclEntryInboundSSH" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {

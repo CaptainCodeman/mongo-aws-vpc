@@ -26,8 +26,7 @@
       "Description" : "The NAT instance Id",
       "Type": "String",
       "MinLength": "1",
-      "MaxLength": "128",
-      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9]*"
+      "MaxLength": "128"
     },
     "VpcId" :{
       "Description" : "Id of the VPC that this NAT device is for",

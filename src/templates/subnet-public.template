@@ -7,11 +7,11 @@
     "SubnetCidr" :{
       "Description" : "CIDR of this subnet",
       "Type" : "String",
-      "MinLength": "7",
-      "MaxLength": "15",
+      "MinLength": "9",
+      "MaxLength": "18",
       "Default" : "10.0.0.0/24",
       "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-      "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x"
+      "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x/x"
     },
     "VpcId" :{
       "Description" : "Id of the VPC that this NAT device is for",

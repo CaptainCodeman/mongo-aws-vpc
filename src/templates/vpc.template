@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
 
-  "Description" : "Create a Virtual Private Cloud (VPC) with public and private subnet plus Network ACLs and security groups to lockdown access",
+  "Description" : "Virtual Private Cloud (VPC) with public and private subnet plus Network ACLs and security groups to lockdown access",
 
   "Parameters" : {
     "KeyName" : {
@@ -21,19 +21,19 @@
       "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
       "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
     },
-    "PrimaryAvailabilityZone" : {
+    "PrimaryAZ" : {
         "Description" : "Availability zone for the primary public and private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
         "Default": "a"
     },
-    "SecondaryAvailabilityZone" : {
+    "SecondaryAZ" : {
         "Description" : "Availability zone for the secondary private subnet",
         "Type": "String",
         "AllowedValues": [ "a", "b", "c", "d", "e" ],
         "Default": "b"
     },
-    "InternalDomainSuffix" : {
+    "DomainName" : {
         "Description" : "Private domain name suffix",
         "Type" : "String",
         "Default" : "local",
@@ -50,6 +50,20 @@
       "Type": "String",
       "MinLength": "1",
       "MaxLength": "128"
+    },
+    "CfnUser" : {
+      "Description" : "The cloud formation user",
+      "Type": "String"
+    },
+    "CfnAccessKey" : {
+      "Description" : "The cloud formation access key",
+      "Type": "String",
+      "NoEcho" : "true"
+    },
+    "CfnSecretKey" : {
+      "Description" : "The cloud formation secret key",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 
@@ -59,7 +73,8 @@
       "Public"    : { "CIDR" : "10.0.0.0/24" },
       "Primary"   : { "CIDR" : "10.0.1.0/24" },
       "Secondary" : { "CIDR" : "10.0.2.0/24" },
-      "Nat"       : { "IP"   : "10.0.0.5" }
+      "NAT"       : { "IP"   : "10.0.0.5" },
+      "DNS"       : { "IP"   : "10.0.0.2" }
     }
   },
 
@@ -78,11 +93,12 @@
     "DhcpOptions" : {
        "Type" : "AWS::EC2::DHCPOptions",
        "Properties" : {
-          "DomainName" : { "Ref" : "InternalDomainSuffix" },
-          "DomainNameServers" : [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "AmazonProvidedDNS" ],
+          "DomainName" : { "Ref" : "DomainName" },
+          "DomainNameServers" : [ "AmazonProvidedDNS", { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] } ],
           "Tags" : [ { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } } ]
        }
     },
+
     "DhcpOptionsAssociation" : {
       "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
       "Properties" : {
@@ -221,7 +237,7 @@
         "IpProtocol": "tcp",
         "FromPort": "28017",
         "ToPort": "28017",
-        "CidrIp": { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] }
+        "CidrIp": { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] }, "32" ] ] }
       }
     },
 
@@ -239,17 +255,17 @@
     "PublicSubnet" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "Create Public subnet"
+        "Comment" : "Public subnet"
       },
       "Properties" : {
-        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-public.template" ]]},
+        "TemplateURL"         : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-public.template" ]]},
         "Parameters" : {
-          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]},
-          "VpcId"                  : { "Ref" : "VPC" },
-          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
-          "AvailabilityZone"       : { "Ref" : "PrimaryAvailabilityZone" },
-          "StackNameOrId"          : { "Ref" : "StackNameOrId" },
-          "GatewayId"              : { "Ref" : "InternetGateway" }
+          "SubnetCidr"        : { "Fn::FindInMap" : [ "SubnetConfig", "Public", "CIDR" ]},
+          "VpcId"             : { "Ref" : "VPC" },
+          "VpcCidr"           : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"  : { "Ref" : "PrimaryAZ" },
+          "StackNameOrId"     : { "Ref" : "StackNameOrId" },
+          "GatewayId"         : { "Ref" : "InternetGateway" }
         }
       }
     },
@@ -257,21 +273,25 @@
     "NatDevice" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "Create NAT instance"
+        "Comment" : "NAT instance"
       },
       "Properties" : {
-        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "nat.template" ]]},
+        "TemplateURL"         : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "nat.template" ]]},
         "Parameters" : {
-          "KeyName"                : { "Ref" : "KeyName" },
-          "SSHFrom"                : { "Ref" : "SSHFrom" },
-          "InstanceType"           : "t1.micro",
-          "PrivateIpAddress"       : { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] },
-          "InternalDomainSuffix"   : { "Ref" : "InternalDomainSuffix" },
-          "VpcId"                  : { "Ref" : "VPC" },
-          "PublicSubnetId"         : { "Ref" : "PublicSubnet" },
-          "DefaultSecurityGroup"   : { "Ref" : "DefaultSecurityGroup" },
-          "StackNameOrId"          : { "Ref" : "StackNameOrId" },
-          "NetworkAcl"             : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] }
+          "KeyName"           : { "Ref" : "KeyName" },
+          "SSHFrom"           : { "Ref" : "SSHFrom" },
+          "InstanceType"      : "t1.micro",
+          "PrivateIpAddress"  : { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] },
+          "DomainName"        : { "Ref" : "DomainName" },
+          "VpcId"             : { "Ref" : "VPC" },
+          "PublicSubnetId"    : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.SubnetId" ] },
+          "DefaultSG"         : { "Ref" : "DefaultSecurityGroup" },
+          "StackNameOrId"     : { "Ref" : "StackNameOrId" },
+          "NetworkAcl"        : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] },
+          "CfnUser"           : { "Ref" : "CfnUser" },
+          "CfnAccessKey"      : { "Ref" : "CfnAccessKey" },
+          "CfnSecretKey"      : { "Ref" : "CfnSecretKey" },
+          "AmazonProvidedDNS" : { "Fn::FindInMap" : [ "SubnetConfig", "DNS", "IP" ] }
         }
       }
     },
@@ -279,18 +299,18 @@
     "PrimarySubnet" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "Create Primary Private subnet"
+        "Comment" : "Primary Private subnet"
       },
       "Properties" : {
-        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
+        "TemplateURL"         : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
         "Parameters" : {
-          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Primary", "CIDR" ]},
-          "NATCidr"                : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] },
-          "NATInstanceId"          : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
-          "VpcId"                  : { "Ref" : "VPC" },
-          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
-          "AvailabilityZone"       : { "Ref" : "PrimaryAvailabilityZone" },
-          "StackNameOrId"          : { "Ref" : "StackNameOrId" }
+          "SubnetCidr"        : { "Fn::FindInMap" : [ "SubnetConfig", "Primary", "CIDR" ]},
+          "NATCidr"           : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] }, "32" ] ] },
+          "NATInstanceId"     : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
+          "VpcId"             : { "Ref" : "VPC" },
+          "VpcCidr"           : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"  : { "Ref" : "PrimaryAZ" },
+          "StackNameOrId"     : { "Ref" : "StackNameOrId" }
         }
       }
     },
@@ -298,18 +318,18 @@
     "SecondarySubnet" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "Create Secondary Private subnet"
+        "Comment" : "Secondary Private subnet"
       },
       "Properties" : {
-        "TemplateURL"              : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
+        "TemplateURL"         : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "subnet-private.template" ]]},
         "Parameters" : {
-          "SubnetCidr"             : { "Fn::FindInMap" : [ "SubnetConfig", "Secondary", "CIDR" ]},
-          "NATCidr"                : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "Nat", "IP" ] }, "32" ] ] },
-          "NATInstanceId"          : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
-          "VpcId"                  : { "Ref" : "VPC" },
-          "VpcCidr"                : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
-          "AvailabilityZone"       : { "Ref" : "SecondaryAvailabilityZone" },
-          "StackNameOrId"          : { "Ref" : "StackNameOrId" }
+          "SubnetCidr"        : { "Fn::FindInMap" : [ "SubnetConfig", "Secondary", "CIDR" ]},
+          "NATCidr"           : { "Fn::Join" : ["/", [ { "Fn::FindInMap" : [ "SubnetConfig", "NAT", "IP" ] }, "32" ] ] },
+          "NATInstanceId"     : { "Fn::GetAtt": [ "NatDevice", "Outputs.InstanceId" ] },
+          "VpcId"             : { "Ref" : "VPC" },
+          "VpcCidr"           : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
+          "AvailabilityZone"  : { "Ref" : "SecondaryAZ" },
+          "StackNameOrId"     : { "Ref" : "StackNameOrId" }
         }
       }
     }

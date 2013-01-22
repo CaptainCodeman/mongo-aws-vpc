@@ -28,6 +28,13 @@
       "MaxLength": "128",
       "ConstraintDescription" : "hostname must conform to RFC 1123"
     },
+    "DomainName" : {
+        "Description" : "Private domain name suffix",
+        "Type" : "String",
+        "Default" : "local",
+        "AllowedPattern" : "^[a-z0-9\\.]{1,30}$",
+        "ConstraintDescription" : "must contain 1-30 alphanumeric characters"
+    },
     "ReplicaSetName" : {
       "Description" : "Name for the MongoDB replica set",
       "Type"        : "String",
@@ -53,6 +60,16 @@
     "DatabaseSecurityGroupId": {
       "Description" : "VPC Security Group",
       "Type"       : "String"
+    },
+    "CfnAccessKey" : {
+      "Description" : "The cloud formation access key",
+      "Type": "String",
+      "NoEcho" : "true"
+    },
+    "CfnSecretKey" : {
+      "Description" : "The cloud formation secret key",
+      "Type": "String",
+      "NoEcho" : "true"
     },
     "StackNameOrId" : {
       "Description" : "The StackName or StackId",
@@ -91,34 +108,6 @@
   },
 
   "Resources" : {
-    "CfnUser" : {
-      "Type" : "AWS::IAM::User",
-      "Properties" : {
-        "Path" : "/",
-        "Policies" : [
-          {
-            "PolicyName" : "root",
-            "PolicyDocument" : {
-              "Statement" : [
-                {
-                  "Effect" : "Allow",
-                  "Action" : "cloudformation:DescribeStackResource",
-                  "Resource" : "*"
-                }
-              ]
-            }
-          }
-        ]
-      }
-    },
-
-    "HostKeys" : {
-      "Type" : "AWS::IAM::AccessKey",
-      "Properties" : {
-        "UserName" : {"Ref" : "CfnUser" }
-      }
-    },
-
     "MongoInstance" : {
       "Type" : "AWS::EC2::Instance",
       "Metadata" : {
@@ -148,8 +137,10 @@
         "InstanceType"     : { "Ref" : "InstanceType" },
         "ImageId"          : { "Fn::FindInMap" : [ "RegionImageZone", { "Ref" : "AWS::Region" }, { "Fn::FindInMap" : [ "InstanceTypeArch", { "Ref" : "InstanceType" }, "Arch" ] } ] },
         "SecurityGroupIds" : [ { "Ref" : "DefaultSecurityGroupId" }, { "Ref" : "DatabaseSecurityGroupId" } ],
+        "DisableApiTermination": "false",
         "KeyName"          : { "Ref" : "KeyName" },
         "Tags" : [
+          { "Key" : "Name", "Value" : { "Ref" : "HostName" } },
           { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } },
           { "Key" : "Network", "Value" : "Private" },
           { "Key" : "Type", "Value" : "Mongo" }
@@ -170,11 +161,15 @@
             "## Initialize CloudFormation bits\n",
             "/opt/aws/bin/cfn-init -v -s ", { "Ref" : "AWS::StackName" },
             " -r MongoInstance",
-            "   --access-key ", { "Ref" : "HostKeys" },
-            "   --secret-key ", { "Fn::GetAtt" : [ "HostKeys", "SecretAccessKey" ] },
+            "   --access-key ", { "Ref" : "CfnAccessKey" },
+            "   --secret-key ", { "Ref" : "CfnSecretKey" },
             "   --region ", { "Ref" : "AWS::Region" },
             " > /tmp/cfn-init.log 2>&1 || error_exit $(</tmp/cfn-init.log)\n",
-            "## Set hostname\n",
+
+            "# Set hostname\n",
+            "hostname nat\n",
+            "sed -i 's/HOSTNAME=.*$/HOSTNAME=nat/g' /etc/sysconfig/network\n",
+            "echo \"127.0.0.1 ", { "Ref" : "HostName" },".", { "Ref" : "DomainName" }," ", { "Ref" : "HostName" }," localhost\" > /etc/hosts\n",
 
             "## Waiting for EBS mounts to become available\n",
             "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 10; done\n",

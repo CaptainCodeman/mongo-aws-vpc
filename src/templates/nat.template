@@ -104,6 +104,18 @@
       "Default" : "10.0.0.2",
       "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})",
       "ConstraintDescription" : "must be a valid IP Address range of the form x.x.x.x"
+    },
+
+    "MMSApiKey" : {
+      "Description" : "The MMS Api key",
+      "Type": "String",
+      "NoEcho" : "true"
+    },
+
+    "MMSSecretKey" : {
+      "Description" : "The MMS secret key",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 
@@ -142,7 +154,7 @@
                   "ec2:DescribeInstances",
                   "ec2:DescribeTags"
                 ],
-                "Resource": [ "*" ]
+                "Resource": "*"
               }
             ]
           }
@@ -262,6 +274,8 @@
                   "expand-hosts\n",
                   "no-hosts\n",
                   "no-resolv\n",
+                  "no-poll\n",
+                  "local-ttl=3600\n",
                   "addn-hosts=/etc/hosts.dnsmasq\n",
                   "domain=", { "Ref" : "DomainName" },"\n",
                   "local=/", { "Ref" : "DomainName" },"/\n",
@@ -274,7 +288,7 @@
                 "group" : "root"
               },
               "/etc/hosts.dnsmasq" : {
-                "content" : "127.0.0.1 nat",
+                "content" : { "Fn::Join" : [" ", [ { "Ref": "PrivateIpAddress" }, "nat" ] ] },
                 "mode" : "000644",
                 "owner" : "root",
                 "group" : "root"
@@ -294,7 +308,32 @@
                 "mode" : "000744",
                 "owner" : "root",
                 "group" : "root"
+              },
+              "/etc/init/mms-agent.conf" : {
+                "content" : { "Fn::Join" : ["\n", [
+                  "description \"MongoDB Monitoring Service (MMS) Agent\"",
+
+                  "pre-start script",
+                  "mkdir -p /var/log/mms-agent/",
+                  "end script",
+
+                  "post-stop script",
+                  "echo \"$(date +'%Y-%m-%d %T,000') INFO mms-agent stopped\" >> /var/log/mms-agent/agent.log",
+                  "end script",
+
+                  "start on runlevel [2345]",
+                  "stop on runlevel [06]",
+
+                  "exec nohup /usr/bin/env python /opt/mms-agent/agent.py >> /var/log/mms-agent/agent.log 2>&1"
+                  ] ]
+                },
+                "mode" : "000644",
+                "owner" : "root",
+                "group" : "root"
               }
+            },
+            "sources" : {
+              "/opt/mms-agent" : "https://mms.10gen.com/settings/10gen-mms-agent.zip"
             },
             "services" : {
               "sysvinit" : {
@@ -303,6 +342,11 @@
                   "ensureRunning" : "true",
                   "files" : [ "/etc/dnsmasq.conf" ],
                   "packages": { "yum" : ["dnsmasq"] }
+                },
+                "mms-agent" : {
+                  "enabled" : "true",
+                  "ensureRunning" : "true",
+                  "files" : [ "/etc/init/mms-agent.conf", "/opt/mms-agent/settings.py" ]
                 }
               }
             }
@@ -348,6 +392,9 @@
             "   --region ", { "Ref" : "AWS::Region" },
             " > /tmp/cfn-init.log 2>&1 || error_exit $(</tmp/cfn-init.log)\n",
 
+            "# Upgrade to latest and greatest ...\n",
+            "yum upgrade -y\n",
+
             "# Set hostname\n",
             "hostname nat\n",
             "sed -i 's/HOSTNAME=.*$/HOSTNAME=nat/g' /etc/sysconfig/network\n",
@@ -364,6 +411,11 @@
             "sed -i 's/openvpnas_gen_init/openvpnas_gen_init --distro redhat/g' /usr/local/openvpn_as/bin/_ovpn-init\n",
             "/usr/local/openvpn_as/bin/ovpn-init --force --batch --host ", { "Ref" : "NATIPAddress" }, " --ec2 --local_auth > /var/log/ovpn-init.log\n",
             "echo \"openvpn:letmein\" | chpasswd\n",
+
+            "# Install MongoMonitoringService\n",
+            "easy_install pymongo\n",
+            "sed -i s/@API_KEY@/", { "Ref" : "MMSApiKey" } ,"/g /opt/mms-agent/settings.py\n",
+            "sed -i s/@SECRET_KEY@/", { "Ref" : "MMSSecretKey" } ,"/g /opt/mms-agent/settings.py\n",
 
             "# CloudFormation signal that setup is complete\n",
             "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"

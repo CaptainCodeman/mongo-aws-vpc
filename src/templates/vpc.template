@@ -68,6 +68,18 @@
       "Description" : "The cloud formation secret key",
       "Type": "String",
       "NoEcho" : "true"
+    },
+
+    "MMSApiKey" : {
+      "Description" : "The MMS Api key",
+      "Type": "String",
+      "NoEcho" : "true"
+    },
+
+    "MMSSecretKey" : {
+      "Description" : "The MMS secret key",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 

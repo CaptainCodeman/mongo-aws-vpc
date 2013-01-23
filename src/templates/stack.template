@@ -49,6 +49,18 @@
         "Description" : "S3 bucket for templates",
         "Type" : "String",
         "Default" : "intesoft-cloudformation"
+    },
+
+    "MMSApiKey" : {
+      "Description" : "The MMS Api key",
+      "Type": "String",
+      "NoEcho" : "true"
+    },
+
+    "MMSSecretKey" : {
+      "Description" : "The MMS secret key",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 
@@ -93,7 +105,9 @@
           "TemplateBucket" : { "Ref" : "TemplateBucket" },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
-          "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] }
+          "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] },
+          "MMSApiKey"      : { "Ref" : "MMSApiKey" },
+          "MMSSecretKey"   : { "Ref" : "MMSSecretKey" }
         }
       }
     },

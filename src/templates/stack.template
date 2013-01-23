@@ -111,7 +111,6 @@
           "HostName"       : "mongo01",
           "DomainName"     : { "Ref" : "DomainName" },
           "ReplicaSetName" : "vpc",
-          "VpcId"          : { "Ref" : "VPC" },
           "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.PrimarySubnetId" ] },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },

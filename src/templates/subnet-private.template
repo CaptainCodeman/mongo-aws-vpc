@@ -137,7 +137,7 @@
         "Protocol" : "6",
         "RuleAction" : "allow",
         "Egress" : "false",
-        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "CidrBlock" : "0.0.0.0/0",
         "PortRange" : {"From" : "32768", "To" : "65535"}
       }
     },
@@ -150,7 +150,7 @@
         "Protocol" : "17",
         "RuleAction" : "allow",
         "Egress" : "false",
-        "CidrBlock" : { "Ref" : "VpcCidr" },
+        "CidrBlock" : "0.0.0.0/0",
         "PortRange" : {"From" : "32768", "To" : "65535"}
       }
     },

@@ -46,11 +46,6 @@
       "Default"     : "vpc"
     },
 
-    "VpcId" : {
-      "Description" : "Id of the VPC",
-      "Type" : "String"
-    },
-
     "SubnetId" : {
       "Description" : "The subnet that this instance will be launched in",
       "Type"        : "String"

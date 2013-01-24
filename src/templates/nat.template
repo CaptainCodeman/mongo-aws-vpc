@@ -74,6 +74,11 @@
       "Type": "String"
     },
 
+    "DatabaseSG": {
+      "Description" : "The security group for database instances",
+      "Type": "String"
+    },
+
     "StackNameOrId" : {
       "Description" : "The stack Nnme or Id",
       "Type": "String",
@@ -207,6 +212,28 @@
       }
     },
 
+    "DatabaseSecurityGroupMongoIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSG" },
+        "IpProtocol": "tcp",
+        "FromPort": "27017",
+        "ToPort": "27017",
+        "SourceSecurityGroupId": { "Ref": "NATSecurityGroup" }
+      }
+    },
+
+    "DatabaseSecurityGroupMongoWebIngress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "DatabaseSG" },
+        "IpProtocol": "tcp",
+        "FromPort": "28017",
+        "ToPort": "28017",
+        "SourceSecurityGroupId": { "Ref": "NATSecurityGroup" }
+      }
+    },
+
     "NetworkAclEntryInboundSSH" : {
       "Type" : "AWS::EC2::NetworkAclEntry",
       "Properties" : {
@@ -251,7 +278,9 @@
         "SecurityGroupEgress" : [
            { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22", "SourceSecurityGroupId" : { "Ref" : "DefaultSG" } },
            { "IpProtocol" : "tcp", "FromPort" : "3389",  "ToPort" : "3389",  "SourceSecurityGroupId" : { "Ref" : "DefaultSG" } },
-           { "IpProtocol" : "udp", "FromPort" : "53",  "ToPort" : "53",  "CidrIp" : { "Fn::Join" : [ "/", [ { "Ref" : "AmazonProvidedDNS" }, "32" ] ] } } ]
+           { "IpProtocol" : "udp", "FromPort" : "53",  "ToPort" : "53",  "CidrIp" : { "Fn::Join" : [ "/", [ { "Ref" : "AmazonProvidedDNS" }, "32" ] ] } },
+           { "IpProtocol" : "tcp", "FromPort" : "27017",  "ToPort" : "27017",  "SourceSecurityGroupId" : { "Ref" : "DatabaseSG" } },
+           { "IpProtocol" : "tcp", "FromPort" : "28017",  "ToPort" : "28017",  "SourceSecurityGroupId" : { "Ref" : "DatabaseSG" } } ]
       }
     },
 

@@ -303,6 +303,7 @@
           "VpcCidr"           : { "Fn::FindInMap" : [ "SubnetConfig", "VPC", "CIDR" ]},
           "PublicSubnetId"    : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.SubnetId" ] },
           "DefaultSG"         : { "Ref" : "DefaultSecurityGroup" },
+          "DatabaseSG"        : { "Ref" : "DatabaseSecurityGroup" },
           "StackNameOrId"     : { "Ref" : "StackNameOrId" },
           "NetworkAcl"        : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] },
           "CfnAccessKey"      : { "Ref" : "CfnAccessKey" },

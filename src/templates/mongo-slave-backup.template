@@ -199,9 +199,9 @@
             "blockdev --setra 16 /dev/sdh1\n",
 
             "## Create filesystems and mount point info\n",
-            "mkfs.xfs -f -l version=2,lazy-count=1,size=64m /dev/sdh1/data > /tmp/mkfs.xfs.1.log 2>&1\n",
+            "mkfs.xfs -f -l version=2,lazy-count=1,size=128m /dev/sdh1 > /tmp/mkfs.xfs.1.log 2>&1\n",
             "mkdir /data\n",
-            "echo '/dev/sdh1/data /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,osyncisdsync,barrier,largeio 0 0' | tee -a /etc/fstab\n",
+            "echo '/dev/sdh1 /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,largeio 0 0' | tee -a /etc/fstab\n",
             "mount /data > /tmp/mountdata.log 2>&1\n",
 
             "## Raise file descriptor limits\n",
@@ -231,7 +231,7 @@
             "rest=true\n",
             "replSet=", { "Ref" : "ReplicaSetName" },
             "\n",
-            "oplogSize=", { "Ref" : "OpLogSize" },
+            "oplogSize=256\n",
             "\n",
             "EOF\n",
 

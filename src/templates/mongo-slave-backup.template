@@ -134,7 +134,6 @@
           "config" : {
             "packages" : {
               "yum" : {
-                "mdadm" : [ ],
                 "sysstat" : [ ],
                 "xfsprogs": [ ]
               }
@@ -192,6 +191,16 @@
             "echo \"127.0.0.1 localhost\" > /etc/hosts\n",
             "echo \"$LOCALIPV4 ", { "Ref" : "HostName" },".", { "Ref" : "DomainName" }," ", { "Ref" : "HostName" },"\" >> /etc/hosts\n",
 
+            "## Raise file descriptor limits\n",
+            "echo '* hard nofile 100000' | tee -a /etc/security/limits.conf\n",
+            "echo '* soft nofile 100000' | tee -a /etc/security/limits.conf\n",
+            "ulimit -n 64000\n",
+            "ulimit -3 32000\n",
+            "echo 300 > /proc/sys/net/ipv4/tcp_keepalive_time\n",
+
+            "## Install MongoDB\n",
+            "yum -y install mongo-10gen-server > /tmp/yum-mongo.log 2>&1\n",
+
             "## Waiting for EBS mounts to become available\n",
             "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 10; done\n",
 
@@ -203,15 +212,6 @@
             "mkdir /data\n",
             "echo '/dev/sdh1 /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,largeio 0 0' | tee -a /etc/fstab\n",
             "mount /data > /tmp/mountdata.log 2>&1\n",
-
-            "## Raise file descriptor limits\n",
-            "echo '* hard nofile 100000' | tee -a /etc/security/limits.conf\n",
-            "echo '* soft nofile 100000' | tee -a /etc/security/limits.conf\n",
-            "ulimit -n 64000\n",
-            "ulimit -3 32000\n",
-
-            "## Install MongoDB\n",
-            "yum -y install mongo-10gen-server > /tmp/yum-mongo.log 2>&1\n",
 
             "## Create data folders\n",
             "mkdir /data/db\n",

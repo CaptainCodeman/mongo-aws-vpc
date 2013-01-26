@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Single node MongoDB deployment with a RAID10 storage configuration",
+  "Description" : "MongoDB replica slave in secondary availability zone with single EBS volume for easy backup",
 
   "Parameters" : {
     "KeyName" : {
@@ -11,21 +11,31 @@
 
     "InstanceType" : {
       "Type" : "String",
-      "Default" : "m1.large",
+      "Default" : "t1.micro",
       "AllowedValues" : [ "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge", "c1.xlarge", "cc1.4xlarge" ],
       "Description"   : "EC2 instance type (e.g. m1.small, m1.large, m1.xlarge, m2.xlarge)"
     },
 
     "VolumeSize" : {
-      "Description" : "Volume size for each EBS volume",
+      "Description" : "Volume size for EBS volume",
       "Type"        : "Number",
-      "Default"     : "10"
+      "Default"     : "20"
+    },
+
+    "MasterName" : {
+      "Description" : "Name for the MongoDB master node",
+      "Type"        : "String",
+      "Default"     : "mongodb01",
+      "AllowedPattern" : "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$",
+      "MinLength": "1",
+      "MaxLength": "128",
+      "ConstraintDescription" : "hostname must conform to RFC 1123"
     },
 
     "HostName" : {
       "Description" : "Name for the MongoDB server",
       "Type"        : "String",
-      "Default"     : "mongodb01",
+      "Default"     : "mongodb99",
       "AllowedPattern" : "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$",
       "MinLength": "1",
       "MaxLength": "128",
@@ -184,31 +194,14 @@
 
             "## Waiting for EBS mounts to become available\n",
             "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 10; done\n",
-            "while [ ! -e /dev/sdh2 ]; do echo waiting for /dev/sdh2 to attach; sleep 10; done\n",
-            "while [ ! -e /dev/sdh3 ]; do echo waiting for /dev/sdh3 to attach; sleep 10; done\n",
-            "while [ ! -e /dev/sdh4 ]; do echo waiting for /dev/sdh4 to attach; sleep 10; done\n",
-
-            "## Create RAID10 and persist configuration\n",
-            "mdadm --verbose --create /dev/md0 --metadata 1.2 --level=10 --chunk=256 --raid-devices=4 /dev/sdh1 /dev/sdh2 /dev/sdh3 /dev/sdh4 > /tmp/mdadm.log 2>&1\n",
-            "echo '`mdadm --detail --scan`' | tee -a /etc/mdadm.conf\n",
 
             "## Set read-ahead on each device\n",
-            "blockdev --setra 16 /dev/md0\n",
             "blockdev --setra 16 /dev/sdh1\n",
-            "blockdev --setra 16 /dev/sdh2\n",
-            "blockdev --setra 16 /dev/sdh3\n",
-            "blockdev --setra 16 /dev/sdh4\n",
-
-            "## Create physical and logical volumes\n",
-            "dd if=/dev/zero of=/dev/md0 bs=512 count=1\n",
-            "pvcreate /dev/md0\n",
-            "vgcreate vg0 /dev/md0\n",
-            "lvcreate -l 100%Free -n data vg0\n",
 
             "## Create filesystems and mount point info\n",
-            "mkfs.xfs -f -l version=2,lazy-count=1,size=64m /dev/vg0/data > /tmp/mkfs.xfs.1.log 2>&1\n",
+            "mkfs.xfs -f -l version=2,lazy-count=1,size=64m /dev/sdh1/data > /tmp/mkfs.xfs.1.log 2>&1\n",
             "mkdir /data\n",
-            "echo '/dev/vg0/data /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,osyncisdsync,barrier,largeio 0 0' | tee -a /etc/fstab\n",
+            "echo '/dev/sdh1/data /data xfs defaults,auto,noatime,nodiratime,noexec,logbufs=8,logbsize=256k,osyncisdsync,barrier,largeio 0 0' | tee -a /etc/fstab\n",
             "mount /data > /tmp/mountdata.log 2>&1\n",
 
             "## Raise file descriptor limits\n",
@@ -245,14 +238,11 @@
             "## Start mongod & configure replica set n",
             "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
 
-            "cat <<EOF > /tmp/mongo-init-rs.js\n",
-            "config = {_id: \"", { "Ref" : "ReplicaSetName" } ,"\", members : [",
-                "{_id : 0, host:\"", { "Ref" : "HostName" },":27017\"}",
-            "]};\n",
-            "rs.initiate(config);\n",
+            "cat <<EOF > /tmp/mongo-init-slave.js\n",
+            "rs.add({_id: 1, host: \"", { "Ref" : "HostName" },":27017\", priority: 0, hidden: true})\n",
             "EOF\n",
 
-            "mongo /tmp/mongo-init-rs.js > /tmp/mongo-init-rs.log 2>&1\n",
+            "mongo ", { "Ref" : "HostName" },"/admin /tmp/mongo-init-slave.js > /tmp/mongo-init-slave.log 2>&1\n",
 
             "## CloudFormation signal that setup is complete\n",
             "/opt/aws/bin/cfn-signal -e 0 -r \"MongoInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"
@@ -274,57 +264,6 @@
         "InstanceId" : { "Ref" : "MongoInstance" },
         "VolumeId"   : { "Ref" : "MongoVolume1" },
         "Device"     : "/dev/sdh1"
-      }
-    },
-
-    "MongoVolume2" : {
-      "Type" : "AWS::EC2::Volume",
-      "Properties" : {
-        "Size" : { "Ref" : "VolumeSize" },
-        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
-      }
-    },
-
-    "MongoVolumeMount2" : {
-      "Type" : "AWS::EC2::VolumeAttachment",
-      "Properties" : {
-        "InstanceId" : { "Ref" : "MongoInstance" },
-        "VolumeId"   : { "Ref" : "MongoVolume2" },
-        "Device"     : "/dev/sdh2"
-      }
-    },
-
-    "MongoVolume3" : {
-      "Type" : "AWS::EC2::Volume",
-      "Properties" : {
-        "Size" : { "Ref" : "VolumeSize" },
-        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
-      }
-    },
-
-    "MongoVolumeMount3" : {
-      "Type" : "AWS::EC2::VolumeAttachment",
-      "Properties" : {
-        "InstanceId" : { "Ref" : "MongoInstance" },
-        "VolumeId"   : { "Ref" : "MongoVolume3" },
-        "Device"     : "/dev/sdh3"
-      }
-    },
-
-    "MongoVolume4" : {
-      "Type" : "AWS::EC2::Volume",
-      "Properties" : {
-        "Size" : { "Ref" : "VolumeSize" },
-        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
-      }
-    },
-
-    "MongoVolumeMount4" : {
-      "Type" : "AWS::EC2::VolumeAttachment",
-      "Properties" : {
-        "InstanceId" : { "Ref" : "MongoInstance" },
-        "VolumeId"   : { "Ref" : "MongoVolume4" },
-        "Device"     : "/dev/sdh4"
       }
     },
 
@@ -355,7 +294,7 @@
 
     "DnsName" : {
       "Value" : { "Fn::Join" : [ ".", [ { "Ref" : "HostName" }, { "Ref" : "DomainName" } ] ] },
-      "Description" : "Private IP Address of the new mongo instance"
+      "Description" : "DNS name of the new mongo instance"
     }
   }
 }

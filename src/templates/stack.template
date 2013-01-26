@@ -53,14 +53,12 @@
 
     "MMSApiKey" : {
       "Description" : "The MMS Api key",
-      "Type": "String",
-      "NoEcho" : "true"
+      "Type": "String"
     },
 
     "MMSSecretKey" : {
       "Description" : "The MMS secret key",
-      "Type": "String",
-      "NoEcho" : "true"
+      "Type": "String"
     }
   },
 
@@ -115,7 +113,7 @@
     "Mongo01" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "MongoDB Server 01"
+        "Comment" : "MongoDB Server 01 - Replica Set Master"
       },
       "Properties" : {
         "TemplateURL"      : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "mongo-master.template" ] ] },
@@ -123,9 +121,35 @@
           "KeyName"        : { "Ref" : "KeyName" },
           "InstanceType"   : "t1.micro",
           "HostName"       : "mongo01",
+          "VolumeSize"     : "10",
           "DomainName"     : { "Ref" : "DomainName" },
           "ReplicaSetName" : "vpc",
           "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.PrimarySubnetId" ] },
+          "StackNameOrId"  : { "Ref" : "AWS::StackName" },
+          "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
+          "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] },
+          "DefaultSecurityGroupId"  : { "Fn::GetAtt" : [ "VPC", "Outputs.DefaultSecurityGroupId" ] },
+          "DatabaseSecurityGroupId" : { "Fn::GetAtt" : [ "VPC", "Outputs.DatabaseSecurityGroupId" ] }
+        }
+      }
+    },
+
+    "Mongo99" : {
+      "Type" : "AWS::CloudFormation::Stack",
+      "Metadata" : {
+        "Comment" : "MongoDB Server 99 - Replica Set Slave Backup"
+      },
+      "Properties" : {
+        "TemplateURL"      : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "mongo-slave-backup.template" ] ] },
+        "Parameters" : {
+          "KeyName"        : { "Ref" : "KeyName" },
+          "InstanceType"   : "t1.micro",
+          "MasterName"     : { "Fn::GetAtt" : [ "Mongo01", "Outputs.HostName" ] },
+          "HostName"       : "mongo99",
+          "VolumeSize"     : "20",
+          "DomainName"     : { "Ref" : "DomainName" },
+          "ReplicaSetName" : "vpc",
+          "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.SecondarySubnetId" ] },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
           "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] },

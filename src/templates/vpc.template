@@ -72,14 +72,12 @@
 
     "MMSApiKey" : {
       "Description" : "The MMS Api key",
-      "Type": "String",
-      "NoEcho" : "true"
+      "Type": "String"
     },
 
     "MMSSecretKey" : {
       "Description" : "The MMS secret key",
-      "Type": "String",
-      "NoEcho" : "true"
+      "Type": "String"
     }
   },
 
@@ -308,6 +306,8 @@
           "NetworkAcl"        : { "Fn::GetAtt": [ "PublicSubnet", "Outputs.NetworkAcl" ] },
           "CfnAccessKey"      : { "Ref" : "CfnAccessKey" },
           "CfnSecretKey"      : { "Ref" : "CfnSecretKey" },
+          "MMSApiKey"         : { "Ref" : "MMSApiKey" },
+          "MMSSecretKey"      : { "Ref" : "MMSSecretKey" },
           "AmazonProvidedDNS" : { "Fn::FindInMap" : [ "SubnetConfig", "DNS", "IP" ] }
         }
       }

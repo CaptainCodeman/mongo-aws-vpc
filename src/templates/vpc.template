@@ -256,13 +256,13 @@
     },
 
     "DatabaseSecurityGroupDatabaseEgress": {
-      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Type": "AWS::EC2::SecurityGroupEgress",
       "Properties": {
         "GroupId": { "Ref": "DatabaseSecurityGroup" },
         "IpProtocol": "tcp",
         "FromPort": "27017",
         "ToPort": "27019",
-        "SourceSecurityGroupId": { "Ref": "DatabaseSecurityGroup" }
+        "DestinationSecurityGroupId": { "Ref": "DatabaseSecurityGroup" }
       }
     },
 

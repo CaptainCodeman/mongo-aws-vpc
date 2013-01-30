@@ -186,7 +186,7 @@
             "echo '* hard nofile 100000' | tee -a /etc/security/limits.conf\n",
             "echo '* soft nofile 100000' | tee -a /etc/security/limits.conf\n",
             "ulimit -n 64000\n",
-            "ulimit -3 32000\n",
+            "ulimit -u 32000\n",
             "echo 300 > /proc/sys/net/ipv4/tcp_keepalive_time\n",
 
             "## Install MongoDB\n",

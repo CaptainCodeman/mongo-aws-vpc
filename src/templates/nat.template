@@ -336,7 +336,8 @@
                   "export JAVA_HOME=/usr/lib/jvm/jre\n",
 
                   "INSTANCES=$(/opt/aws/bin/ec2-describe-instances --filter \"vpc-id=", { "Ref" : "VpcId" }, "\")\n",
-                  "join -o 2.2,1.2 <(echo \"$INSTANCES\" | grep '^TAG\\sinstance.*\\sName' | cut -f 3,5) <(echo \"$INSTANCES\" | grep ^INSTANCE | cut -f 2,18) > /etc/hosts.dnsmasq\n"
+                  "join -o 2.2,1.2 <(echo \"$INSTANCES\" | grep '^TAG\\sinstance.*\\sName' | cut -f 3,5) <(echo \"$INSTANCES\" | grep ^INSTANCE | cut -f 2,18) > /etc/hosts.dnsmasq\n",
+                  "pkill -HUP dnsmasq\n"
                   ] ]
                 },
                 "mode" : "000744",
@@ -445,7 +446,7 @@
       "DependsOn" : "NATInstance",
       "Properties" : {
         "Handle" : {  "Ref" : "WaitHandle" },
-        "Timeout" : "300"
+        "Timeout" : "600"
       }
     }
   },

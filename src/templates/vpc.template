@@ -78,6 +78,12 @@
     "MMSSecretKey" : {
       "Description" : "The MMS secret key",
       "Type": "String"
+    },
+
+    "VpnPassword" : {
+      "Description" : "The openvpn password",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 
@@ -308,7 +314,8 @@
           "CfnSecretKey"      : { "Ref" : "CfnSecretKey" },
           "MMSApiKey"         : { "Ref" : "MMSApiKey" },
           "MMSSecretKey"      : { "Ref" : "MMSSecretKey" },
-          "AmazonProvidedDNS" : { "Fn::FindInMap" : [ "SubnetConfig", "DNS", "IP" ] }
+          "AmazonProvidedDNS" : { "Fn::FindInMap" : [ "SubnetConfig", "DNS", "IP" ] },
+          "VpnPassword"       : { "Ref" : "VpnPassword" }
         }
       }
     },

@@ -239,7 +239,7 @@
             "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
 
             "cat <<EOF > /tmp/mongo-init-slave.js\n",
-            "rs.add({_id: 1, host: \"", { "Ref" : "HostName" },":27017\", priority: 0, votes: 0, hidden: true})\n",
+            "rs.add({_id: 1, host: \"", { "Ref" : "HostName" },":27017\", priority: 0, votes: 0, hidden: true, buildIndexes: false})\n",
             "EOF\n",
 
             "mongo ", { "Ref" : "HostName" },"/admin /tmp/mongo-init-slave.js > /tmp/mongo-init-slave.log 2>&1\n",

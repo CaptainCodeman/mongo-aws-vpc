@@ -119,6 +119,12 @@
     "MMSSecretKey" : {
       "Description" : "The MMS secret key",
       "Type": "String"
+    },
+
+    "VpnPassword" : {
+      "Description" : "The openvpn password",
+      "Type": "String",
+      "NoEcho" : "true"
     }
   },
 
@@ -412,7 +418,7 @@
             "rm openvpn-as-1.8.4-RHEL5.x86_64.rpm\n",
             "sed -i 's/openvpnas_gen_init/openvpnas_gen_init --distro redhat/g' /usr/local/openvpn_as/bin/_ovpn-init\n",
             "/usr/local/openvpn_as/bin/ovpn-init --force --batch --host ", { "Ref" : "NATIPAddress" }, " --ec2 --local_auth > /var/log/ovpn-init.log\n",
-            "echo \"openvpn:letmein\" | chpasswd\n",
+            "echo \"openvpn:", { "Ref" : "VpnPassword" } ,"\" | chpasswd\n",
 
             "# Install MongoMonitoringService\n",
             "\n",

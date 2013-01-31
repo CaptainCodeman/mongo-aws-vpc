@@ -59,6 +59,19 @@
     "MMSSecretKey" : {
       "Description" : "The MMS secret key",
       "Type": "String"
+    },
+
+    "VpnPassword" : {
+      "Description" : "The openvpn password",
+      "Type": "String",
+      "NoEcho" : "true"
+    }
+  },
+
+  "Mappings" : {
+    "MongoConfig" : {
+      "Master"    : { "Name" : "mongo01", "InstanceType" : "m1.large", "VolumeSize" : "25", "ReplicaSetName" : "vpc" },
+      "Backup"    : { "Name" : "mongo99", "InstanceType" : "m1.small", "VolumeSize" : "50" }
     }
   },
 
@@ -105,7 +118,8 @@
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
           "CfnSecretKey"   : { "Fn::GetAtt" : [ "CfnAccessKey", "SecretAccessKey" ] },
           "MMSApiKey"      : { "Ref" : "MMSApiKey" },
-          "MMSSecretKey"   : { "Ref" : "MMSSecretKey" }
+          "MMSSecretKey"   : { "Ref" : "MMSSecretKey" },
+          "VpnPassword"    : { "Ref" : "VpnPassword" }
         }
       }
     },
@@ -113,17 +127,17 @@
     "Mongo01" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "MongoDB Server 01 - Replica Set Master"
+        "Comment" : "MongoDB Replica Set Master"
       },
       "Properties" : {
         "TemplateURL"      : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "mongo-master.template" ] ] },
         "Parameters" : {
           "KeyName"        : { "Ref" : "KeyName" },
-          "InstanceType"   : "t1.micro",
-          "HostName"       : "mongo01",
-          "VolumeSize"     : "10",
+          "InstanceType"   : { "Fn::FindInMap" : [ "MongoConfig", "Master", "InstanceType" ]},
+          "HostName"       : { "Fn::FindInMap" : [ "MongoConfig", "Master", "Name" ]},
+          "VolumeSize"     : { "Fn::FindInMap" : [ "MongoConfig", "Master", "VolumeSize" ]},
           "DomainName"     : { "Ref" : "DomainName" },
-          "ReplicaSetName" : "vpc",
+          "ReplicaSetName" : { "Fn::FindInMap" : [ "MongoConfig", "Master", "ReplicaSetName" ]},
           "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.PrimarySubnetId" ] },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },
@@ -137,18 +151,18 @@
     "Mongo99" : {
       "Type" : "AWS::CloudFormation::Stack",
       "Metadata" : {
-        "Comment" : "MongoDB Server 99 - Replica Set Slave Backup"
+        "Comment" : "MongoDB Replica Set Slave for EBS backup"
       },
       "Properties" : {
         "TemplateURL"      : { "Fn::Join" : ["/", [ "https://s3.amazonaws.com", { "Ref" : "TemplateBucket" }, { "Ref" : "AWS::Region" }, "mongo-slave-backup.template" ] ] },
         "Parameters" : {
           "KeyName"        : { "Ref" : "KeyName" },
-          "InstanceType"   : "t1.micro",
+          "InstanceType"   : { "Fn::FindInMap" : [ "MongoConfig", "Backup", "InstanceType" ]},
           "MasterName"     : { "Fn::GetAtt" : [ "Mongo01", "Outputs.HostName" ] },
-          "HostName"       : "mongo99",
-          "VolumeSize"     : "20",
+          "HostName"       : { "Fn::FindInMap" : [ "MongoConfig", "Backup", "Name" ]},
+          "VolumeSize"     : { "Fn::FindInMap" : [ "MongoConfig", "Backup", "VolumeSize" ]},
           "DomainName"     : { "Ref" : "DomainName" },
-          "ReplicaSetName" : "vpc",
+          "ReplicaSetName" : { "Fn::FindInMap" : [ "MongoConfig", "Master", "ReplicaSetName" ]},
           "SubnetId"       : { "Fn::GetAtt" : [ "VPC", "Outputs.SecondarySubnetId" ] },
           "StackNameOrId"  : { "Ref" : "AWS::StackName" },
           "CfnAccessKey"   : { "Ref" : "CfnAccessKey" },

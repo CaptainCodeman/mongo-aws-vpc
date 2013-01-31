@@ -202,7 +202,7 @@
             "yum -y install mongo-10gen-server > /tmp/yum-mongo.log 2>&1\n",
 
             "## Waiting for EBS mounts to become available\n",
-            "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 10; done\n",
+            "while [ ! -e /dev/sdh1 ]; do echo waiting for /dev/sdh1 to attach; sleep 5; done\n",
 
             "## Set read-ahead on each device\n",
             "blockdev --setra 16 /dev/sdh1\n",
@@ -235,14 +235,14 @@
             "\n",
             "EOF\n",
 
-            "## Start mongod & configure replica set n",
-            "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
+            "## Start mongod & configure replica set\n",
+            "service mongod start > /tmp/mongod-start.log 2>&1\n",
 
             "cat <<EOF > /tmp/mongo-init-slave.js\n",
             "rs.add({_id: 1, host: \"", { "Ref" : "HostName" },":27017\", priority: 0, votes: 0, hidden: true, buildIndexes: false})\n",
             "EOF\n",
 
-            "mongo ", { "Ref" : "HostName" },"/admin /tmp/mongo-init-slave.js > /tmp/mongo-init-slave.log 2>&1\n",
+            "mongo ", { "Ref" : "MasterName" },"/admin /tmp/mongo-init-slave.js > /tmp/mongo-init-slave.log 2>&1\n",
 
             "## CloudFormation signal that setup is complete\n",
             "/opt/aws/bin/cfn-signal -e 0 -r \"MongoInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"
@@ -254,7 +254,12 @@
       "Type" : "AWS::EC2::Volume",
       "Properties" : {
         "Size" : { "Ref" : "VolumeSize" },
-        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] }
+        "AvailabilityZone" : { "Fn::GetAtt" : [ "MongoInstance", "AvailabilityZone" ] },
+        "Tags" : [
+          { "Key" : "Name", "Value" : { "Fn::Join" : [ "-", [ { "Ref" : "HostName" }, "sdh1" ] ] } },
+          { "Key" : "HostName", "Value" : { "Ref" : "HostName" } },
+          { "Key" : "Application", "Value" : { "Ref" : "StackNameOrId" } }
+        ]
       }
     },
 
@@ -276,7 +281,7 @@
       "DependsOn" : "MongoInstance",
       "Properties" : {
         "Handle" : {  "Ref" : "WaitHandle" },
-        "Timeout" : "300"
+        "Timeout" : "600"
       }
     }
   },

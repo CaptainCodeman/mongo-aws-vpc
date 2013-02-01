@@ -244,7 +244,7 @@
             "EOF\n",
 
             "## Start mongod & configure replica set\n",
-            "service mongod start > /tmp/mongod-start.log 2>&1\n",
+            "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
 
             "## Configure replica set\n",
             "cat <<EOF > /tmp/mongo-init-rs.js\n",

@@ -236,7 +236,7 @@
             "EOF\n",
 
             "## Start mongod & configure replica set\n",
-            "service mongod start > /tmp/mongod-start.log 2>&1\n",
+            "/etc/init.d/mongod start > /tmp/mongod-start.log 2>&1\n",
 
             "cat <<EOF > /tmp/mongo-init-slave.js\n",
             "rs.add({_id: 1, host: \"", { "Ref" : "HostName" },":27017\", priority: 0, votes: 0, hidden: true, buildIndexes: false})\n",

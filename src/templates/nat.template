@@ -148,26 +148,31 @@
         "AssumeRolePolicyDocument": {
           "Statement": [ {
             "Effect": "Allow",
-            "Principal": { "Service": [ "ec2.amazonaws.com" ] },
+            "Principal": {
+              "Service": [ "ec2.amazonaws.com" ]
+            },
             "Action": [ "sts:AssumeRole" ]
           } ]
         },
-        "Path": "/",
-        "Policies": [ {
-          "PolicyName": "root",
-          "PolicyDocument": {
-            "Statement": [
-              {
-                "Effect": "Allow",
-                "Action": [
-                  "ec2:DescribeInstances",
-                  "ec2:DescribeTags"
-                ],
-                "Resource": "*"
-              }
-            ]
-          }
-        } ]
+        "Path": "/"
+      }
+    },
+
+    "NATRolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "root",
+        "PolicyDocument": {
+          "Statement": [ {
+            "Effect": "Allow",
+            "Action": [
+              "ec2:DescribeInstances",
+              "ec2:DescribeTags"
+            ],
+            "Resource": "*"
+          } ]
+        },
+        "Roles" : [ { "Ref" : "NATRole" } ]
       }
     },
 
@@ -421,18 +426,17 @@
             "/usr/local/openvpn_as/bin/ovpn-init --force --batch --host ", { "Ref" : "NATIPAddress" }, " --ec2 --local_auth > /var/log/ovpn-init.log\n",
             "echo \"openvpn:", { "Ref" : "VpnPassword" } ,"\" | chpasswd\n",
 
-            "# Install MongoMonitoringService\n",
-            "\n",
+            "# Install Mongo Monitoring Service (if keys provided)\n",
+            "if [ ! -z \"", { "Ref" : "MMSApiKey" } ,"\"]; then\n",
             "easy_install pymongo\n",
             "sed -i s/@API_KEY@/", { "Ref" : "MMSApiKey" } ,"/g /opt/mms-agent/settings.py\n",
             "sed -i s/@SECRET_KEY@/", { "Ref" : "MMSSecretKey" } ,"/g /opt/mms-agent/settings.py\n",
             "echo \"nohup python /opt/mms-agent/agent.py > /var/log/mms-agent.log 2>&1 &\" >> /etc/rc.local\n",
+            "nohup python /opt/mms-agent/agent.py > /var/log/mms-agent.log 2>&1\n",
+            "fi\n",
 
             "# CloudFormation signal that setup is complete\n",
-            "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n",
-
-            "# Reboot required ?",
-            "reboot"
+            "/opt/aws/bin/cfn-signal -e 0 -r \"NatInstance setup complete\" '", { "Ref" : "WaitHandle" }, "'\n"
         ] ] } }
       }
     },

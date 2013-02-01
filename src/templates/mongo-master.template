@@ -203,11 +203,11 @@
             "echo '`mdadm --detail --scan`' | tee -a /etc/mdadm.conf\n",
 
             "## Set read-ahead on each device\n",
-            "blockdev --setra 16 /dev/md0\n",
-            "blockdev --setra 16 /dev/sdh1\n",
-            "blockdev --setra 16 /dev/sdh2\n",
-            "blockdev --setra 16 /dev/sdh3\n",
-            "blockdev --setra 16 /dev/sdh4\n",
+            "blockdev --setra 32 /dev/md0\n",
+            "blockdev --setra 32 /dev/sdh1\n",
+            "blockdev --setra 32 /dev/sdh2\n",
+            "blockdev --setra 32 /dev/sdh3\n",
+            "blockdev --setra 32 /dev/sdh4\n",
 
             "## Create physical and logical volumes\n",
             "dd if=/dev/zero of=/dev/md0 bs=512 count=1\n",
@@ -224,11 +224,7 @@
             "## Create data folders\n",
             "mkdir /data/db\n",
             "mkdir /data/log\n",
-            "mkdir /data/journal\n",
             "chown -R mongod:mongod /data > /tmp/chown1.log 2>&1\n",
-            "chown -R mongod:mongod /data/db > /tmp/chown2.log 2>&1\n",
-            "chown -R mongod:mongod /data/log > /tmp/chown3.log 2>&1\n",
-            "chown -R mongod:mongod /data/journal > /tmp/chown4.log 2>&1\n",
 
             "## Update mongod configuration\n",
             "cat <<EOF > /etc/mongod.conf\n",
@@ -359,7 +355,7 @@
       "DependsOn" : "MongoInstance",
       "Properties" : {
         "Handle" : {  "Ref" : "WaitHandle" },
-        "Timeout" : "600"
+        "Timeout" : "900"
       }
     }
   },

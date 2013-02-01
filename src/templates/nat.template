@@ -427,7 +427,7 @@
             "echo \"openvpn:", { "Ref" : "VpnPassword" } ,"\" | chpasswd\n",
 
             "# Install Mongo Monitoring Service (if keys provided)\n",
-            "if [ ! -z \"", { "Ref" : "MMSApiKey" } ,"\"]; then\n",
+            "if [ ! -z \"", { "Ref" : "MMSApiKey" } ,"\" ]; then\n",
             "easy_install pymongo\n",
             "sed -i s/@API_KEY@/", { "Ref" : "MMSApiKey" } ,"/g /opt/mms-agent/settings.py\n",
             "sed -i s/@SECRET_KEY@/", { "Ref" : "MMSSecretKey" } ,"/g /opt/mms-agent/settings.py\n",

@@ -431,8 +431,21 @@
             "easy_install pymongo\n",
             "sed -i s/@API_KEY@/", { "Ref" : "MMSApiKey" } ,"/g /opt/mms-agent/settings.py\n",
             "sed -i s/@SECRET_KEY@/", { "Ref" : "MMSSecretKey" } ,"/g /opt/mms-agent/settings.py\n",
-            "echo \"nohup python /opt/mms-agent/agent.py > /var/log/mms-agent.log 2>&1 &\" >> /etc/rc.local\n",
-            "nohup python /opt/mms-agent/agent.py > /var/log/mms-agent.log 2>&1\n",
+
+            "cat <<EOF > /etc/init/mms-agent.conf\n",
+            "description \"MongoDB Monitoring Service (MMS) Agent\"\n",
+            "pre-start script\n",
+            "mkdir -p /var/log/mms-agent/\n",
+            "end script\n",
+            "post-stop script\n",
+            "echo \"$(date +'%Y-%m-%d %T,000') INFO mms-agent stopped\" >> /var/log/mms-agent/agent.log\n",
+            "end script\n",
+            "start on runlevel [2345]\n",
+            "stop on runlevel [06]\n",
+            "exec nohup /usr/bin/env python /opt/mms-agent/agent.py >> /var/log/mms-agent/agent.log 2>&1\n",
+            "EOF\n",
+
+            "start mms-agent\n",
             "fi\n",
 
             "# CloudFormation signal that setup is complete\n",

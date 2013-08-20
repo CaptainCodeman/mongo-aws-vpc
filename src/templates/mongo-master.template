@@ -99,20 +99,21 @@
           "m2.4xlarge"     : { "Arch" : "64" },
           "m3.xlarge"      : { "Arch" : "64" },
           "m3.2xlarge"     : { "Arch" : "64" },
-          "c1.medium"      : { "Arch" : "64" },
-          "c1.xlarge"      : { "Arch" : "64" },
-          "cc1.4xlarge"    : { "Arch" : "64HVM" }
+          "cr1.8xlarge"    : { "Arch" : "64" },
+          "hi1.4xlarge"    : { "Arch" : "64" },
+          "hs1.8xlarge"    : { "Arch" : "64" }
       },
 
       "RegionImageZone" : {
-          "us-east-1"      : { "64" : "ami-1624987f", "64HVM" : "ami-02f54a6b" },
-          "us-west-2"      : { "64" : "ami-2a31bf1a", "64HVM" : "NOT_YET_SUPPORTED" },
-          "us-west-1"      : { "64" : "ami-1bf9de5e", "64HVM" : "NOT_YET_SUPPORTED" },
-          "eu-west-1"      : { "64" : "ami-c37474b7", "64HVM" : "ami-1b02026f" },
-          "sa-east-1"      : { "64" : "ami-1e08d103", "64HVM" : "NOT_YET_SUPPORTED" },
-          "ap-southeast-1" : { "64" : "ami-a6a7e7f4", "64HVM" : "NOT_YET_SUPPORTED" },
-          "ap-northeast-1" : { "64" : "ami-4e6cd34f", "64HVM" : "NOT_YET_SUPPORTED" },
-          "ap-southeast-2" : { "64" : "ami-bd990e87", "64HVM" : "NOT_YET_SUPPORTED" }
+          "us-east-1"      : { "64" : "ami-05355a6c" },
+          "us-west-2"      : { "64" : "ami-0358ce33" },
+          "us-west-1"      : { "64" : "ami-3ffed17a" },
+          "eu-west-1"      : { "64" : "ami-c7c0d6b3" },
+          "ap-southeast-1" : { "64" : "ami-fade91a8" },
+          "ap-southeast-2" : { "64" : "ami-39b23d38" },
+          "ap-northeast-1" : { "64" : "ami-d16bfbeb" },
+          "sa-east-1"      : { "64" : "ami-5253894f" },
+          "us-gov-west-1"  : { "64" : "ami-a58feb86" }
       }
   },
 

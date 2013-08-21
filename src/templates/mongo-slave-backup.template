@@ -12,7 +12,7 @@
     "InstanceType" : {
       "Type" : "String",
       "Default" : "t1.micro",
-      "AllowedValues" : [ "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge", "c1.xlarge", "cc1.4xlarge" ],
+      "AllowedValues" : [ "t1.micro", "m1.small", "m1.medium", "m1.large", "m1.xlarge", "m2.xlarge", "m2.2xlarge", "m2.4xlarge", "m3.xlarge", "m3.2xlarge", "cr1.8xlarge", "hi1.4xlarge", "hs1.8xlarge" ],
       "Description"   : "EC2 instance type (e.g. m1.small, m1.large, m1.xlarge, m2.xlarge)"
     },
 
@@ -116,14 +116,13 @@
 
       "RegionImageZone" : {
           "us-east-1"      : { "64" : "ami-05355a6c" },
-          "us-west-2"      : { "64" : "ami-0358ce33" },
           "us-west-1"      : { "64" : "ami-3ffed17a" },
+          "us-west-2"      : { "64" : "ami-0358ce33" },
           "eu-west-1"      : { "64" : "ami-c7c0d6b3" },
           "ap-southeast-1" : { "64" : "ami-fade91a8" },
           "ap-southeast-2" : { "64" : "ami-39b23d38" },
           "ap-northeast-1" : { "64" : "ami-d16bfbeb" },
-          "sa-east-1"      : { "64" : "ami-5253894f" },
-          "us-gov-west-1"  : { "64" : "ami-a58feb86" }
+          "sa-east-1"      : { "64" : "ami-5253894f" }
       }
   },
 
